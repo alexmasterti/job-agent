@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Job Agent{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_actions %}
+<div class="kill-switch active" style="font-size:13px">
+    <div class="kill-switch-dot"></div>
+    Agent Active
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card accent">
+        <div class="stat-label">Jobs Discovered</div>
+        <div class="stat-value">0</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-label">Applications Sent</div>
+        <div class="stat-value">0</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-label">Pending Approval</div>
+        <div class="stat-value">0</div>
+    </div>
+    <div class="stat-card yellow">
+        <div class="stat-label">Recruiter Replies</div>
+        <div class="stat-value">0</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-label">Interviews</div>
+        <div class="stat-value">0</div>
+    </div>
+</div>
+
+<!-- LLM Budget -->
+<div class="budget-section">
+    <div class="budget-header">
+        <div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:2px">Today's LLM Spend</div>
+            <div style="font-size:12px;color:var(--text-muted)">Daily budget: ${{ daily_budget }}</div>
+        </div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:-0.04em;color:var(--accent-light)">
+            ${{ today_spend }}
+        </div>
+    </div>
+    {% set pct = (today_spend / daily_budget * 100) | round(1) %}
+    <div class="progress-bar-wrap">
+        <div class="progress-bar-fill {% if pct > 80 %}danger{% elif pct > 60 %}warning{% endif %}"
+             style="width:{{ [pct, 100]|min }}%"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:6px">{{ pct }}% used</div>
+</div>
+
+<!-- Profile status -->
+<div class="card" style="margin-bottom:var(--space-6)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)">
+        <h3 style="font-size:16px">Profile</h3>
+        <a href="/profile" class="btn btn-secondary btn-sm">Edit</a>
+    </div>
+
+    {% if profile %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-3)">
+        <div>
+            <div class="stat-label">Name</div>
+            <div style="font-weight:600;margin-top:4px">{{ profile.full_name or '—' }}</div>
+        </div>
+        <div>
+            <div class="stat-label">Headline</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:4px">{{ profile.headline or '—' }}</div>
+        </div>
+        <div>
+            <div class="stat-label">Skills</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:4px">{{ profile.skills | length }} detected</div>
+        </div>
+        <div>
+            <div class="stat-label">Experience</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:4px">{{ profile.experience | length }} roles</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:2rem">
+        <div class="empty-icon">📄</div>
+        <p>No resume loaded yet.</p>
+        <code style="font-size:12px;color:var(--text-dim);background:rgba(255,255,255,0.05);padding:4px 10px;border-radius:6px">
+            job-agent profile load --user-email &lt;email&gt; resume.pdf
+        </code>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Getting started -->
+{% if not profile %}
+<div class="card">
+    <h3 style="font-size:16px;margin-bottom:var(--space-4)">Getting Started</h3>
+    <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--accent-soft);border-radius:var(--radius-sm);border:1px solid rgba(124,58,237,0.2)">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">1</div>
+            <div>
+                <div style="font-size:14px;font-weight:600">Load your resume</div>
+                <div style="font-size:12px;color:var(--text-muted)">Run <code>job-agent profile load --user-email &lt;email&gt; resume.pdf</code></div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--bg-card-hover);border-radius:var(--radius-sm);border:1px solid var(--border)">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text-dim);flex-shrink:0">2</div>
+            <div>
+                <div style="font-size:14px;font-weight:600;color:var(--text-muted)">Discover jobs</div>
+                <div style="font-size:12px;color:var(--text-dim)">Run <code>job-agent discover --source greenhouse --keyword "senior software engineer"</code></div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--bg-card-hover);border-radius:var(--radius-sm);border:1px solid var(--border)">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text-dim);flex-shrink:0">3</div>
+            <div>
+                <div style="font-size:14px;font-weight:600;color:var(--text-muted)">Match & apply</div>
+                <div style="font-size:12px;color:var(--text-dim)">Run <code>job-agent match</code> then review matches in this dashboard</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

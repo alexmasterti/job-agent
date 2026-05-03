@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Job Agent{% endblock %}</title>
+
+    <!-- No-flash theme bootstrap — runs before any render -->
+    <script>
+        (function(){
+            var t = localStorage.getItem('theme');
+            if (t === 'light') document.documentElement.setAttribute('data-theme','light');
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/css/tokens.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+
+    <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous" defer></script>
+    <script src="/static/js/theme.js" defer></script>
+    {% block head %}{% endblock %}
+</head>
+<body hx-boost="true">
+<div class="app-shell">
+    {% if user %}
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <a href="/" class="sidebar-logo">
+            <div class="sidebar-logo-icon">⚡</div>
+            <span class="sidebar-logo-text">Job Agent</span>
+        </a>
+
+        <div class="sidebar-nav">
+            <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                Dashboard
+            </a>
+
+            <div class="nav-section-label">Jobs</div>
+
+            <a href="/jobs" class="nav-item {% if '/jobs' in request.url.path %}active{% endif %}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                Matched Jobs
+            </a>
+
+            <a href="/queue" class="nav-item {% if '/queue' in request.url.path %}active{% endif %}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Approval Queue
+            </a>
+
+            <a href="/applications" class="nav-item {% if '/applications' in request.url.path %}active{% endif %}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Applications
+            </a>
+
+            <a href="/inbox" class="nav-item {% if '/inbox' in request.url.path %}active{% endif %}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Recruiter Inbox
+            </a>
+
+            <div class="nav-section-label">Settings</div>
+
+            <a href="/profile" class="nav-item {% if '/profile' in request.url.path %}active{% endif %}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile
+            </a>
+
+            <div class="nav-section-label">Appearance</div>
+
+            <button class="nav-item" data-theme-toggle aria-label="Toggle theme">
+                <svg class="theme-icon-dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                <svg class="theme-icon-light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <span class="theme-icon-dark">Light Mode</span>
+                <span class="theme-icon-light">Dark Mode</span>
+                <div class="theme-toggle-track" style="margin-left:auto"><div class="theme-toggle-thumb"></div></div>
+            </button>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="kill-switch active" id="kill-switch-indicator">
+                <div class="kill-switch-dot"></div>
+                Agent Active
+            </div>
+            <div class="user-menu">
+                <div class="user-avatar">{{ user.email[0].upper() }}</div>
+                <div class="user-info">
+                    <div class="user-name">{{ user.email.split('@')[0] }}</div>
+                    <div class="user-email">{{ user.email }}</div>
+                </div>
+            </div>
+            <a href="/auth/logout" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center">Sign out</a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- Main content -->
+    <div class="main">
+        {% if user %}
+        <div class="topbar">
+            <span class="topbar-title">{% block page_title %}{% endblock %}</span>
+            <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+        </div>
+        {% endif %}
+
+        <div class="page-content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

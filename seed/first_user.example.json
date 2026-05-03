@@ -1,0 +1,38 @@
+{
+  "full_name": "Your Full Name",
+  "headline": "Senior Software Engineer",
+  "summary": "10+ years building distributed systems ...",
+  "skills": ["C#", ".NET", "Node.js", "Angular", "AWS", "PostgreSQL", "Docker"],
+  "location_preferences": [
+    {"pattern": "Tampa, FL", "weight": 30},
+    {"pattern": "remote-US", "weight": 25},
+    {"pattern": "Boston, MA on-site", "weight": -10}
+  ],
+  "schedule_constraints": [
+    {"description": "No travel > 25%"}
+  ],
+  "stack_alignment": {
+    "strong_match": [".NET", "C#", "Node.js", "TypeScript", "AWS"],
+    "weak_match": ["Python", "Go", "Azure"],
+    "avoid": ["PHP", "Ruby", "Sales Engineer"]
+  },
+  "compensation": {
+    "min_base_salary_usd": 130000,
+    "min_total_comp_usd": 150000,
+    "currency": "USD",
+    "equity_required": false
+  },
+  "work_authorization": {
+    "country": "US",
+    "status": "citizen",
+    "requires_sponsorship": false
+  },
+  "role_targets": [
+    {"title_pattern": "senior software engineer", "level": "senior", "weight": 20},
+    {"title_pattern": "staff software engineer", "level": "staff", "weight": 10},
+    {"title_pattern": "engineering manager", "level": "manager", "weight": -20}
+  ],
+  "hard_filters": ["sales engineer", "unpaid", "on-call rotation required"],
+  "current_employer": "Current Company Name",
+  "competitors_to_exclude": ["Competitor A", "Competitor B"]
+}

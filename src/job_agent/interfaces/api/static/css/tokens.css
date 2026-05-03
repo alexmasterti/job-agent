@@ -1,0 +1,115 @@
+/* ============================================================
+   Job Agent Design Tokens
+   Translated from BookLibrary's design system — same visual family.
+   Dark premium UI: violet/pink gradient accents, deep backgrounds.
+   ============================================================ */
+
+:root {
+    /* Backgrounds */
+    --bg-base:          #08080E;
+    --bg-surface:       #0F0F1A;
+    --bg-card:          #111120;
+    --bg-card-hover:    #171728;
+    --bg-input:         #0D0D1A;
+
+    /* Borders */
+    --border:           rgba(255, 255, 255, 0.06);
+    --border-hover:     rgba(255, 255, 255, 0.12);
+    --border-focus:     rgba(124, 58, 237, 0.6);
+
+    /* Accent — violet → pink gradient */
+    --accent:           #7C3AED;
+    --accent-soft:      rgba(124, 58, 237, 0.12);
+    --accent-light:     #A78BFA;
+    --pink:             #EC4899;
+    --gradient:         linear-gradient(135deg, #7C3AED 0%, #A855F7 60%, #EC4899 100%);
+    --gradient-text:    linear-gradient(135deg, #A78BFA, #F472B6);
+    --gradient-subtle:  linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(236,72,153,0.06) 100%);
+    --gradient-btn:     linear-gradient(135deg, #7C3AED, #A855F7);
+
+    /* Text */
+    --text:             #F1F5F9;
+    --text-muted:       #94A3B8;
+    --text-dim:         #475569;
+
+    /* Status colors */
+    --green:            #10B981;
+    --green-soft:       rgba(16, 185, 129, 0.12);
+    --yellow:           #F59E0B;
+    --yellow-soft:      rgba(245, 158, 11, 0.12);
+    --blue:             #60A5FA;
+    --blue-soft:        rgba(96, 165, 250, 0.12);
+    --red:              #F87171;
+    --red-soft:         rgba(248, 113, 113, 0.12);
+
+    /* Spacing (8px grid) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* Radius */
+    --radius-sm: 8px;
+    --radius:    12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+
+    /* Shadows */
+    --shadow:       0 2px 8px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6);
+    --shadow-lg:    0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+    --shadow-glow:  0 0 40px rgba(124, 58, 237, 0.18);
+    --shadow-card:  0 1px 1px rgba(255,255,255,0.02) inset, 0 4px 24px rgba(0,0,0,0.4);
+
+    /* Typography */
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-size-xs:   11px;
+    --font-size-sm:   13px;
+    --font-size-base: 15px;
+    --font-size-lg:   17px;
+    --font-size-xl:   20px;
+    --font-size-2xl:  24px;
+    --font-size-3xl:  32px;
+
+    /* Motion */
+    --ease:       cubic-bezier(0.4, 0, 0.2, 1);
+    --transition: all 0.2s var(--ease);
+
+    /* Sidebar width */
+    --sidebar-w: 220px;
+    --nav-h: 56px;
+}
+
+/* Light theme */
+[data-theme="light"] {
+    --bg-base:          #F4F4F8;
+    --bg-surface:       #FFFFFF;
+    --bg-card:          #FFFFFF;
+    --bg-card-hover:    #F8F8FC;
+    --bg-input:         #F4F4F8;
+
+    --border:           rgba(0, 0, 0, 0.08);
+    --border-hover:     rgba(0, 0, 0, 0.15);
+    --border-focus:     rgba(124, 58, 237, 0.5);
+
+    --accent-soft:      rgba(124, 58, 237, 0.08);
+
+    --text:             #0F0F1A;
+    --text-muted:       #6B7280;
+    --text-dim:         #9CA3AF;
+
+    --green-soft:       rgba(16, 185, 129, 0.1);
+    --yellow-soft:      rgba(245, 158, 11, 0.1);
+    --blue-soft:        rgba(96, 165, 250, 0.1);
+    --red-soft:         rgba(248, 113, 113, 0.1);
+
+    --shadow:       0 1px 4px rgba(0,0,0,0.08), 0 2px 12px rgba(0,0,0,0.06);
+    --shadow-lg:    0 4px 24px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-glow:  0 0 40px rgba(124, 58, 237, 0.08);
+    --shadow-card:  0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06);
+}
