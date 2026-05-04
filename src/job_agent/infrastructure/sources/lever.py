@@ -42,9 +42,14 @@ def _is_remote(location: str, commitment: str) -> bool:
     return "remote" in location.lower() or "remote" in commitment.lower()
 
 
-def _keyword_match(title: str, query: str) -> bool:
+def _keyword_match(title: str, query: str, description: str = "") -> bool:
+    """Match if ANY query word appears in the title, or ALL appear across title+description."""
+    words = query.lower().split()
     title_lower = title.lower()
-    return all(word.lower() in title_lower for word in query.split())
+    if any(w in title_lower for w in words):
+        return True
+    combined = title_lower + " " + description.lower()
+    return all(w in combined for w in words)
 
 
 class LeverSource:
@@ -103,7 +108,10 @@ class LeverSource:
         jobs: list[Job] = []
         for item in raw_jobs:
             title: str = item.get("text", "")
-            if not _keyword_match(title, query):
+            description = _strip_html(
+                item.get("description", "") or item.get("descriptionPlain", "")
+            )
+            if not _keyword_match(title, query, description):
                 continue
 
             categories: dict[str, str] = item.get("categories", {})
@@ -112,10 +120,6 @@ class LeverSource:
             is_remote = _is_remote(location, commitment)
             if remote and not is_remote:
                 continue
-
-            description = _strip_html(
-                item.get("description", "") or item.get("descriptionPlain", "")
-            )
             company = slug.replace("-", " ").title()
             external_id: str = item.get("id", "")
             url_field: str = item.get("hostedUrl", "")

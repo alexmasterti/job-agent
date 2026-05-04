@@ -42,9 +42,16 @@ def _is_remote(location: str) -> bool:
     return "remote" in location.lower()
 
 
-def _keyword_match(title: str, query: str) -> bool:
+def _keyword_match(title: str, query: str, description: str = "") -> bool:
+    """Match if ANY query word appears in the title, or ALL appear across title+description."""
+    words = query.lower().split()
     title_lower = title.lower()
-    return all(word.lower() in title_lower for word in query.split())
+    # Fast path: any word in the title is a match
+    if any(w in title_lower for w in words):
+        return True
+    # Fallback: all words present across title + description
+    combined = title_lower + " " + description.lower()
+    return all(w in combined for w in words)
 
 
 class GreenhouseSource:
@@ -102,15 +109,14 @@ class GreenhouseSource:
 
         for item in raw_jobs:
             title: str = item.get("title", "")
-            if not _keyword_match(title, query):
+            description = _strip_html(item.get("content", ""))
+            if not _keyword_match(title, query, description):
                 continue
 
             location: str = item.get("location", {}).get("name", "")
             is_remote = _is_remote(location)
             if remote and not is_remote:
                 continue
-
-            description = _strip_html(item.get("content", ""))
             company = slug.replace("-", " ").title()
             external_id = str(item.get("id", ""))
             url_field: str = item.get("absolute_url", "")
