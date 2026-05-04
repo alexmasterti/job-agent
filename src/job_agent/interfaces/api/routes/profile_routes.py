@@ -4,6 +4,7 @@ import tempfile
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -119,7 +120,8 @@ async def save_preferences(request: Request) -> RedirectResponse:
     container = request.app.state.container
     await container.profile_repo.save_preferences(user_id, locations, remote_pref, min_match_score)
 
-    return RedirectResponse("/profile", status_code=303)
+    qs = urlencode({"toast_msg": "Preferences saved", "toast_type": "success"})
+    return RedirectResponse(f"/profile?{qs}", status_code=303)
 
 
 @router.post("/profile/resumes/upload", response_model=None)
@@ -161,7 +163,9 @@ async def upload_resume(request: Request, file: UploadFile) -> RedirectResponse:
         finally:
             tmp_path.unlink(missing_ok=True)
 
-    return RedirectResponse("/profile", status_code=303)
+    msg = f'Resume "{name}" uploaded' + (" and set as primary" if set_primary else "")
+    qs = urlencode({"toast_msg": msg, "toast_type": "success"})
+    return RedirectResponse(f"/profile?{qs}", status_code=303)
 
 
 @router.post("/profile/resumes/{resume_id}/set-primary", response_model=None)
@@ -184,7 +188,13 @@ async def set_primary_resume(request: Request, resume_id: uuid.UUID) -> Redirect
         finally:
             tmp_path.unlink(missing_ok=True)
 
-    return RedirectResponse("/profile", status_code=303)
+    qs = urlencode(
+        {
+            "toast_msg": f'"{row.name}" set as primary' if row else "Resume not found",
+            "toast_type": "success" if row else "error",
+        }
+    )
+    return RedirectResponse(f"/profile?{qs}", status_code=303)
 
 
 @router.post("/profile/resumes/{resume_id}/delete", response_model=None)
@@ -195,7 +205,8 @@ async def delete_resume(request: Request, resume_id: uuid.UUID) -> RedirectRespo
 
     container = request.app.state.container
     await container.resume_repo.delete(resume_id, user_id)
-    return RedirectResponse("/profile", status_code=303)
+    qs = urlencode({"toast_msg": "Resume deleted", "toast_type": "info"})
+    return RedirectResponse(f"/profile?{qs}", status_code=303)
 
 
 @router.get("/profile/resumes/{resume_id}/download", response_model=None)

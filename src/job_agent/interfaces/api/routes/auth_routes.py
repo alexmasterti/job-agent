@@ -57,7 +57,7 @@ async def callback(request: Request, code: str, state: str) -> RedirectResponse:
         return RedirectResponse("/auth/login")
 
     token = create_session_cookie(user.id, settings)
-    response = RedirectResponse("/")
+    response = RedirectResponse("/?toast_msg=Welcome+back!&toast_type=success")
     response.set_cookie(
         _COOKIE_NAME,
         token,

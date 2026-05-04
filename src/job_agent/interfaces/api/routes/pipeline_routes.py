@@ -331,17 +331,31 @@ def _render_progress(state: PipelineState) -> str:
         else ""
     )
 
-    # Action
+    # Action + toast
     action = ""
+    toast_script = ""
     if state.stage == _STAGE_DONE and state.saved > 0:
         action = (
             '<a href="/jobs?tab=matched" class="btn btn-primary btn-sm" '
             'style="margin-top:var(--space-3);display:inline-block">View Matches &rarr;</a>'
         )
+        toast_script = (
+            f"<script>if(!window._pipelineToastShown){{window._pipelineToastShown=true;"
+            f"showToast('Pipeline complete — {state.saved} matches found!','success');}}</script>"
+        )
     elif state.stage == _STAGE_DONE and state.new_jobs == 0:
         action = (
             '<div style="font-size:12px;color:var(--text-dim);margin-top:var(--space-2)">'
             "No new jobs found. Try a different keyword or check back later.</div>"
+        )
+        toast_script = (
+            "<script>if(!window._pipelineToastShown){window._pipelineToastShown=true;"
+            "showToast('Pipeline complete — no new jobs found','info');}</script>"
+        )
+    elif state.stage == _STAGE_ERROR:
+        toast_script = (
+            "<script>if(!window._pipelineToastShown){window._pipelineToastShown=true;"
+            "showToast('Pipeline failed — check logs','error');}</script>"
         )
 
     return (
@@ -358,4 +372,5 @@ def _render_progress(state: PipelineState) -> str:
         f"{counters}"
         f"{action}"
         f"</div>"
+        f"{toast_script}"
     )
