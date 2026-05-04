@@ -1,1 +1,1 @@
-- [job-agent project](project_job_agent.md) — Phases 1-4 done; multi-resume + location filter + tailoring live; Phase 5 (auto-submit) is next
+- [job-agent project](project_job_agent.md) — Phases 1-4 done + CI green + dashboard pipeline + location radius + match threshold + toasts; Phase 5 (auto-submit) is next
