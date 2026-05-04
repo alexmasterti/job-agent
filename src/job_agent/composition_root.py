@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from job_agent.application.use_cases.discover_jobs import DiscoverJobsUseCase
 from job_agent.application.use_cases.load_profile import LoadProfileUseCase
 from job_agent.application.use_cases.match_jobs import MatchJobsUseCase
+from job_agent.application.use_cases.submit_application import SubmitApplicationUseCase
 from job_agent.application.use_cases.tailor_and_apply import TailorAndApplyUseCase
 from job_agent.domain.services.matching import MatchingService
 from job_agent.infrastructure.auth.google_oauth import GoogleOAuthAdapter
@@ -31,10 +32,12 @@ from job_agent.infrastructure.persistence.repositories import (
 )
 from job_agent.infrastructure.sources.greenhouse import GreenhouseSource
 from job_agent.infrastructure.sources.lever import LeverSource
+from job_agent.infrastructure.submission.browser import PlaywrightSubmitter
 
 if TYPE_CHECKING:
     from job_agent.config import Settings
     from job_agent.domain.ports.job_source import JobSourcePort
+    from job_agent.domain.ports.job_submitter import JobSubmitterPort
 
 
 @dataclass(frozen=True)
@@ -61,6 +64,7 @@ class Container:
     discover_jobs: DiscoverJobsUseCase
     match_jobs: MatchJobsUseCase
     tailor_and_apply: TailorAndApplyUseCase
+    submit_application: SubmitApplicationUseCase
 
 
 def build_container(settings: Settings) -> Container:
@@ -85,16 +89,30 @@ def build_container(settings: Settings) -> Container:
         "lever": LeverSource(),
     }
 
+    pw_submitter = PlaywrightSubmitter()
+    submitters: dict[str, JobSubmitterPort] = {
+        "greenhouse": pw_submitter,
+        "lever": pw_submitter,
+    }
+
     matching_service = MatchingService(encoder=encoder, llm=llm)
 
     load_profile = LoadProfileUseCase(user_repo, profile_repo, llm)
     discover_jobs = DiscoverJobsUseCase(sources, job_repo)
+    submit_application = SubmitApplicationUseCase(
+        submitters=submitters,
+        application_repo=application_repo,
+        job_repo=job_repo,
+        profile_repo=profile_repo,
+        user_repo=user_repo,
+    )
     tailor_and_apply = TailorAndApplyUseCase(
         profile_repo=profile_repo,
         job_repo=job_repo,
         application_repo=application_repo,
         llm=llm,
         resume_repo=resume_repo,
+        submit_use_case=submit_application,
     )
     match_jobs = MatchJobsUseCase(
         profile_repo=profile_repo,
@@ -121,4 +139,5 @@ def build_container(settings: Settings) -> Container:
         discover_jobs=discover_jobs,
         match_jobs=match_jobs,
         tailor_and_apply=tailor_and_apply,
+        submit_application=submit_application,
     )

@@ -129,6 +129,29 @@ class ApplicationRepository:
                 update(ApplicationRow).where(ApplicationRow.id == app_id).values(status=status)
             )
 
+    async def update_submission(
+        self,
+        app_id: uuid.UUID,
+        status: str,
+        ats_confirmation_id: str | None = None,
+        submitted_at: datetime | None = None,
+        response_text: str | None = None,
+        screenshot_path: str | None = None,
+    ) -> None:
+        values: dict[str, object] = {"status": status}
+        if ats_confirmation_id:
+            values["ats_confirmation_id"] = ats_confirmation_id
+        if submitted_at:
+            values["submitted_at"] = submitted_at
+        if response_text:
+            values["response_text"] = response_text
+        if screenshot_path:
+            values["screenshot_path"] = screenshot_path
+        async with self._sf() as s, s.begin():
+            await s.execute(
+                update(ApplicationRow).where(ApplicationRow.id == app_id).values(**values)
+            )
+
     async def counts(self, user_id: uuid.UUID) -> dict[str, int]:
         async with self._sf() as s:
             rows = (

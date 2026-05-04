@@ -8,6 +8,9 @@ from pydantic import BaseModel
 
 
 class ApplicationStatus(StrEnum):
+    applying = "applying"
+    applied_manual = "applied_manual"
+    auto_applied = "auto_applied"
     pending_human_review = "pending_human_review"
     queued = "queued"
     submitted = "submitted"

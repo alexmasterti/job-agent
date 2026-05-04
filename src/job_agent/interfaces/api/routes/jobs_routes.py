@@ -70,6 +70,7 @@ async def jobs_page(
     tab: str = "matched",
     page: int = 1,
     min_score: int = -1,
+    ats: str = "all",
 ) -> HTMLResponse | RedirectResponse:
     user_id = _get_user_id(request)
     if not user_id:
@@ -89,12 +90,15 @@ async def jobs_page(
     applying_count = app_counts.get("applying", 0)
     applied_count = sum(app_counts.get(s, 0) for s in ("applied_manual", "auto_applied"))
 
+    ats_filter = ats if ats in ("all", "greenhouse", "lever") else "all"
+
     ctx: dict[str, object] = {
         "user": user,
         "tab": tab,
         "applying_count": applying_count,
         "applied_count": applied_count,
         "min_score": min_score,
+        "ats_filter": ats_filter,
         "page": page,
     }
 
@@ -115,9 +119,11 @@ async def jobs_page(
     else:  # matched
         all_matches = await container.match_repo.list_top(user_id, limit=500)
         filtered = [
-            (m, t, c, loc, u, r)
-            for m, t, c, loc, u, r in all_matches
-            if m.final_score >= min_score and _location_ok(loc, r, profile)
+            (m, t, c, loc, u, r, a, posted)
+            for m, t, c, loc, u, r, a, posted in all_matches
+            if m.final_score >= min_score
+            and _location_ok(loc, r, profile)
+            and (ats_filter == "all" or a == ats_filter)
         ]
         total = len(filtered)
         page = max(1, page)
@@ -127,11 +133,15 @@ async def jobs_page(
 
         applied_ids: set[uuid.UUID] = set()
         applying_ids: set[uuid.UUID] = set()
+        auto_applied_ids: set[uuid.UUID] = set()
         for match, *_ in page_matches:
             app = await container.application_repo.get_by_job(user_id, match.job_id)
             if app:
                 if app.status == "applying":
                     applying_ids.add(match.job_id)
+                elif app.status == "auto_applied":
+                    auto_applied_ids.add(match.job_id)
+                    applied_ids.add(match.job_id)
                 else:
                     applied_ids.add(match.job_id)
 
@@ -140,6 +150,7 @@ async def jobs_page(
                 "matches": page_matches,
                 "applied_ids": applied_ids,
                 "applying_ids": applying_ids,
+                "auto_applied_ids": auto_applied_ids,
                 "total": total,
                 "total_pages": total_pages,
                 "location_filter_active": bool(
@@ -174,6 +185,29 @@ async def download_tailored_resume(request: Request, app_id: uuid.UUID) -> Respo
     )
 
 
+@router.get("/api/applications/{app_id}/screenshot", response_model=None)
+async def view_screenshot(request: Request, app_id: uuid.UUID) -> Response:
+    user_id = _get_user_id(request)
+    if not user_id:
+        return Response("Unauthorized", status_code=401)
+
+    container = request.app.state.container
+    app = await container.application_repo.get_by_id(app_id)
+    if not app or app.user_id != user_id:
+        return Response("Not found", status_code=404)
+
+    if not app.screenshot_path:
+        return Response("No screenshot available", status_code=404)
+
+    from pathlib import Path
+
+    path = Path(app.screenshot_path)
+    if not path.exists():
+        return Response("Screenshot file missing", status_code=404)
+
+    return Response(content=path.read_bytes(), media_type="image/png")
+
+
 @router.get("/queue", response_model=None)
 async def queue_redirect(request: Request) -> RedirectResponse:
     return RedirectResponse("/jobs?tab=applying")
@@ -197,14 +231,19 @@ async def apply_job(request: Request, job_id: uuid.UUID) -> HTMLResponse:
     # Idempotent — don't double-apply
     existing = await container.application_repo.get_by_job(user_id, job_id)
     if existing:
-        label = "Applying..." if existing.status == "applying" else "Applied"
-        disabled_style = "btn-secondary" if existing.status == "applying" else "btn-secondary"
-        return HTMLResponse(
-            f'<button class="btn {disabled_style} btn-sm" disabled>{label}</button>'
-        )
+        if existing.status == "applying":
+            label = "Applying..."
+        elif existing.status == "auto_applied":
+            label = "Auto-submitted"
+        else:
+            label = "Applied"
+        return HTMLResponse(f'<button class="btn btn-secondary btn-sm" disabled>{label}</button>')
 
+    # Use the job's actual ATS type so auto-submit can pick it up
+    job = await container.job_repo.get_by_id(job_id)
+    ats_type = job.ats_type if job and job.ats_type != "unknown" else "manual"
     app = await container.application_repo.create(
-        user_id, job_id, ats_type="manual", status="applying"
+        user_id, job_id, ats_type=ats_type, status="applying"
     )
 
     # Fire background tailoring — non-blocking
@@ -238,4 +277,62 @@ async def job_apply_status(request: Request, job_id: uuid.UUID) -> HTMLResponse:
             f"Applying...</button>"
         )
 
-    return HTMLResponse('<button class="btn btn-secondary btn-sm" disabled>Applied</button>')
+    label = "Auto-submitted" if app.status == "auto_applied" else "Applied"
+    return HTMLResponse(f'<button class="btn btn-secondary btn-sm" disabled>{label}</button>')
+
+
+@router.post("/api/applications/{app_id}/verify", response_model=None)
+async def verify_application(request: Request, app_id: uuid.UUID) -> HTMLResponse:
+    """Re-open the Greenhouse form, re-fill, submit, enter verification code."""
+    user_id = _get_user_id(request)
+    if not user_id:
+        return HTMLResponse('<span style="color:var(--red);font-size:12px">Login required</span>')
+
+    form = await request.form()
+    code = str(form.get(f"code-{app_id}", "")).strip()
+    if not code:
+        return HTMLResponse('<span style="color:var(--red);font-size:12px">Enter the code</span>')
+
+    container = request.app.state.container
+    app = await container.application_repo.get_by_id(app_id)
+    if not app or app.user_id != user_id:
+        return HTMLResponse('<span style="color:var(--red);font-size:12px">Not found</span>')
+
+    # Run verification inline (takes ~20s but user needs the result)
+    from job_agent.composition_root import Container  # noqa: TC001
+    from job_agent.infrastructure.persistence.models import ApplicationRow  # noqa: TC001
+    from job_agent.infrastructure.submission.browser import complete_verification
+
+    c = container  # type: Container
+    a = app  # type: ApplicationRow
+
+    job = await c.job_repo.get_by_id(a.job_id)
+    profile = await c.profile_repo.get_by_user(user_id)
+    user = await c.user_repo.get_by_id(user_id)
+
+    if not job or not profile:
+        return HTMLResponse('<span style="color:var(--red);font-size:12px">Missing data</span>')
+
+    result = await complete_verification(
+        url=job.ats_apply_url or job.url,
+        ats_type=job.ats_type,
+        profile=profile,
+        email=str(user.email) if user else "",
+        resume_text=(a.form_fields_snapshot or {}).get("tailored_resume", ""),
+        verification_code=code,
+    )
+
+    if result["success"]:
+        await c.application_repo.update_submission(
+            app_id=a.id,
+            status="auto_applied",
+            ats_confirmation_id=f"verified-{a.id.hex[:8]}",
+            screenshot_path=str(result.get("screenshot", "")),
+            response_text=str(result.get("page_text", ""))[:500],
+        )
+        return HTMLResponse(
+            '<span style="color:var(--green);font-size:12px;font-weight:600">Auto-submitted!</span>'
+        )
+
+    error = str(result.get("error", "Verification failed"))
+    return HTMLResponse(f'<span style="color:var(--red);font-size:12px">{error[:80]}</span>')

@@ -54,19 +54,28 @@
 {% if tab == 'matched' %}
 
 <div class="card" style="margin-bottom:var(--space-4);padding:var(--space-3) var(--space-4)">
-    <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
-        <span style="font-size:13px;font-weight:600;color:var(--text-muted)">Min score:</span>
+    <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-2)">
+        <span style="font-size:13px;font-weight:600;color:var(--text-muted)">Score:</span>
         {% for threshold in [0, 50, 60, 70] %}
-        <a href="/jobs?tab=matched&min_score={{ threshold }}&page=1"
+        <a href="/jobs?tab=matched&min_score={{ threshold }}&ats={{ ats_filter }}&page=1"
            class="btn btn-sm {% if min_score == threshold %}btn-primary{% else %}btn-secondary{% endif %}">
             {% if threshold == 0 %}All{% else %}{{ threshold }}+{% endif %}
         </a>
         {% endfor %}
+    </div>
+    <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:600;color:var(--text-muted)">Source:</span>
+        <a href="/jobs?tab=matched&min_score={{ min_score }}&ats=all&page=1"
+           class="btn btn-sm {% if ats_filter == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">All</a>
+        <a href="/jobs?tab=matched&min_score={{ min_score }}&ats=greenhouse&page=1"
+           class="btn btn-sm {% if ats_filter == 'greenhouse' %}btn-primary{% else %}btn-secondary{% endif %}" style="{% if ats_filter == 'greenhouse' %}background:rgba(59,130,246,0.2);border-color:rgb(96,165,250);color:rgb(96,165,250){% endif %}">Greenhouse</a>
+        <a href="/jobs?tab=matched&min_score={{ min_score }}&ats=lever&page=1"
+           class="btn btn-sm {% if ats_filter == 'lever' %}btn-primary{% else %}btn-secondary{% endif %}" style="{% if ats_filter == 'lever' %}background:rgba(168,85,247,0.2);border-color:rgb(192,132,252);color:rgb(192,132,252){% endif %}">Lever</a>
         {% if total_pages > 1 %}
         <div style="margin-left:auto;display:flex;align-items:center;gap:var(--space-2)">
-            {% if page > 1 %}<a href="/jobs?tab=matched&min_score={{ min_score }}&page={{ page - 1 }}" class="btn btn-secondary btn-sm">Prev</a>{% endif %}
+            {% if page > 1 %}<a href="/jobs?tab=matched&min_score={{ min_score }}&ats={{ ats_filter }}&page={{ page - 1 }}" class="btn btn-secondary btn-sm">Prev</a>{% endif %}
             <span style="font-size:13px;color:var(--text-muted)">{{ page }} / {{ total_pages }}</span>
-            {% if page < total_pages %}<a href="/jobs?tab=matched&min_score={{ min_score }}&page={{ page + 1 }}" class="btn btn-secondary btn-sm">Next</a>{% endif %}
+            {% if page < total_pages %}<a href="/jobs?tab=matched&min_score={{ min_score }}&ats={{ ats_filter }}&page={{ page + 1 }}" class="btn btn-secondary btn-sm">Next</a>{% endif %}
         </div>
         {% endif %}
     </div>
@@ -74,7 +83,7 @@
 
 {% if matches %}
 <div style="display:flex;flex-direction:column;gap:var(--space-3)">
-{% for match, title, company, location, url, remote in matches %}
+{% for match, title, company, location, url, remote, ats_type, posted_at in matches %}
 {% set score = match.final_score | float %}
 {% if score >= 70 %}{% set sc = 'var(--green)' %}{% set sbg = 'rgba(16,185,129,0.12)' %}
 {% elif score >= 50 %}{% set sc = 'var(--yellow)' %}{% set sbg = 'rgba(245,158,11,0.12)' %}
@@ -90,6 +99,9 @@
             <span style="font-size:13px;color:var(--text-muted)">{{ company }}</span>
             {% if location %}<span style="font-size:12px;color:var(--text-dim)">· {{ location }}</span>{% endif %}
             {% if remote or 'remote' in (location or '')|lower %}<span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:rgba(16,185,129,0.12);color:var(--green)">Remote</span>{% endif %}
+            {% if ats_type == 'greenhouse' %}<span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:rgba(59,130,246,0.12);color:rgb(96,165,250)">Greenhouse</span>
+            {% elif ats_type == 'lever' %}<span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:rgba(168,85,247,0.12);color:rgb(192,132,252)">Lever</span>{% endif %}
+            {% if posted_at %}<span style="font-size:11px;color:var(--text-dim)">· Posted {{ posted_at.strftime('%b %d') }}</span>{% endif %}
         </div>
         {% if match.reasoning %}
         <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5">
@@ -99,7 +111,9 @@
     </div>
     <div style="flex-shrink:0;display:flex;gap:var(--space-2);align-items:center">
         <a href="{{ url }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open</a>
-        {% if match.job_id in applied_ids %}
+        {% if match.job_id in auto_applied_ids|default({}) %}
+        <button class="btn btn-secondary btn-sm" disabled style="color:var(--green)">Auto-submitted</button>
+        {% elif match.job_id in applied_ids %}
         <button class="btn btn-secondary btn-sm" disabled>Applied</button>
         {% elif match.job_id in applying_ids %}
         <button class="btn btn-secondary btn-sm" disabled
@@ -174,7 +188,7 @@
             <tr style="border-bottom:1px solid var(--border)">
                 <th style="padding:var(--space-3) var(--space-4);text-align:left;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Job</th>
                 <th style="padding:var(--space-3) var(--space-4);text-align:left;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;width:70px">Score</th>
-                <th style="padding:var(--space-3) var(--space-4);text-align:left;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Date</th>
+                <th style="padding:var(--space-3) var(--space-4);text-align:left;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Status</th>
                 <th style="padding:var(--space-3) var(--space-4);text-align:left;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Actions</th>
             </tr>
         </thead>
@@ -196,8 +210,34 @@
                 {% else %}{% set sc = 'var(--text-dim)' %}{% endif %}
                 <span style="font-weight:700;color:{{ sc }}">{{ score | round | int }}</span>
             </td>
-            <td style="padding:var(--space-3) var(--space-4);font-size:13px;color:var(--text-muted)">
-                {% if app.created_at %}{{ app.created_at.strftime('%b %d') }}{% else %}—{% endif %}
+            <td style="padding:var(--space-3) var(--space-4);font-size:13px">
+                {% set needs_verify = app.ats_confirmation_id and app.ats_confirmation_id.startswith('verify-') %}
+                {% if app.status == 'auto_applied' and needs_verify %}
+                <span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;color:var(--yellow);background:rgba(245,158,11,0.12)">Needs code</span>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:3px">Check email for verification code</div>
+                <div id="verify-form-{{ app.id }}" style="margin-top:6px;display:flex;gap:4px;align-items:center">
+                    <input type="text" id="code-{{ app.id }}" placeholder="Enter code" maxlength="12"
+                        style="width:100px;padding:3px 6px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary)">
+                    <button class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 8px"
+                        hx-post="/api/applications/{{ app.id }}/verify"
+                        hx-include="#code-{{ app.id }}"
+                        hx-target="#verify-form-{{ app.id }}"
+                        hx-swap="outerHTML">Verify</button>
+                </div>
+                {% elif app.status == 'auto_applied' %}
+                <span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;color:var(--green);background:rgba(16,185,129,0.12)">Auto-submitted</span>
+                {% if app.ats_confirmation_id %}
+                <div style="font-size:11px;color:var(--text-dim);margin-top:3px" title="{{ app.ats_confirmation_id }}">ID: {{ app.ats_confirmation_id[:20] }}{% if app.ats_confirmation_id|length > 20 %}...{% endif %}</div>
+                {% endif %}
+                {% if app.submitted_at %}
+                <div style="font-size:11px;color:var(--text-dim)">{{ app.submitted_at.strftime('%b %d, %H:%M') }}</div>
+                {% endif %}
+                {% else %}
+                <span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;color:var(--text-muted);background:rgba(255,255,255,0.06)">Manual</span>
+                {% if app.created_at %}
+                <div style="font-size:11px;color:var(--text-dim);margin-top:3px">{{ app.created_at.strftime('%b %d') }}</div>
+                {% endif %}
+                {% endif %}
             </td>
             <td style="padding:var(--space-3) var(--space-4)">
                 <div style="display:flex;gap:var(--space-2)">
@@ -208,6 +248,9 @@
                         Preview
                     </button>
                     <a href="/api/applications/{{ app.id }}/resume/download" class="btn btn-primary btn-sm" hx-boost="false">Download</a>
+                    {% endif %}
+                    {% if app.screenshot_path %}
+                    <a href="/api/applications/{{ app.id }}/screenshot" target="_blank" class="btn btn-secondary btn-sm" hx-boost="false">Proof</a>
                     {% endif %}
                 </div>
             </td>

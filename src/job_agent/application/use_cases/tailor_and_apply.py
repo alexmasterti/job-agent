@@ -9,6 +9,7 @@ import structlog
 if TYPE_CHECKING:
     import uuid
 
+    from job_agent.application.use_cases.submit_application import SubmitApplicationUseCase
     from job_agent.infrastructure.llm.anthropic_client import AnthropicClient
     from job_agent.infrastructure.persistence.repositories.application_repo import (
         ApplicationRepository,
@@ -54,12 +55,14 @@ class TailorAndApplyUseCase:
         application_repo: ApplicationRepository,
         llm: AnthropicClient,
         resume_repo: UserResumeRepository | None = None,
+        submit_use_case: SubmitApplicationUseCase | None = None,
     ) -> None:
         self._profile_repo = profile_repo
         self._job_repo = job_repo
         self._application_repo = application_repo
         self._llm = llm
         self._resume_repo = resume_repo
+        self._submit = submit_use_case
 
     async def execute(self, app_id: uuid.UUID, user_id: uuid.UUID, job_id: uuid.UUID) -> None:
         log.info("tailor.start", app_id=str(app_id), job_id=str(job_id))
@@ -100,6 +103,15 @@ class TailorAndApplyUseCase:
 
             await self._application_repo.update_with_tailoring(app_id, tailored, "applied_manual")
             log.info("tailor.done", app_id=str(app_id), chars=len(tailored))
+
+            # Auto-submit if a submitter is available for this ATS type
+            if self._submit and job.ats_type not in ("linkedin", "indeed", "unknown"):
+                try:
+                    submitted = await self._submit.execute(app_id, user_id)
+                    if submitted:
+                        log.info("tailor.auto_submitted", app_id=str(app_id))
+                except Exception as submit_err:
+                    log.warning("tailor.auto_submit_failed", error=str(submit_err))
 
         except Exception as exc:
             log.error("tailor.failed", app_id=str(app_id), error=str(exc))

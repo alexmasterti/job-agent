@@ -1,14 +1,14 @@
 ---
 name: job-agent project
-description: Phases 1-4 done + CI fixed + dashboard pipeline + location radius + match threshold + toasts; Phase 5 (auto-submit) is next
+description: Phases 1-5 (partial) done. Auto-submit via Playwright fills Greenhouse forms. Verification code entry needs debugging.
 type: project
 originSessionId: 09c717ae-2136-40da-a607-ac01853a9174
 ---
-Autonomous job application agent (like usemassive.com but self-hosted). Branch `feature/phase-1-foundation` on https://github.com/alexmasterti/job-agent. Alex is the only user but multi-tenant from day 1. Alex develops on Windows but the Mac clone is at `/Users/alexcs/job-agent`.
+Autonomous job application agent (like usemassive.com but self-hosted). Branches: `main` (stable, phases 1-4), `feature/phase-5-auto-submit` (current work). Repo: https://github.com/alexmasterti/job-agent. Mac clone at `/Users/alexcs/job-agent`.
 
 **Why:** Build for Alex now, sell to others later. Moat = outcome data flywheel, Gmail reply integration, ATS-aware tailoring, truthfulness guarantee.
 
-**How to run:** Always check `CLAUDE.md` in repo for non-negotiables. Server runs on port 8080 via `uv run uvicorn job_agent.interfaces.api.app:create_app --factory --host 0.0.0.0 --port 8080 --reload`. The .env file is NOT in the repo — grab it from `~/Downloads/job-agent/.env`.
+**How to run:** Always check `CLAUDE.md` in repo for non-negotiables. Server runs on port 8080 via `uv run uvicorn job_agent.interfaces.api.app:create_app --factory --host 0.0.0.0 --port 8080 --reload`. The .env file is NOT in the repo — grab it from `~/Downloads/job-agent/.env`. Install Playwright browsers: `uv run playwright install chromium`.
 
 ## Phase status
 
@@ -16,110 +16,110 @@ Autonomous job application agent (like usemassive.com but self-hosted). Branch `
 - Phase 2 (Discovery): DONE — Greenhouse + Lever `JobSourcePort` adapters
 - Phase 3 (Matching): DONE — `MatchingService` with embeddings + LLM judge, scoring 0-100
 - Phase 4 (Tailoring): DONE — `TailorAndApplyUseCase` rewrites resume per role with Sonnet
-- **Phase 5 (Auto-submit): NOT STARTED** — "Apply Me" only tailors; user must paste into ATS by hand
+- **Phase 5 (Auto-submit): IN PROGRESS** — Playwright fills Greenhouse forms, submits. ~80% of form filling works. Verification code flow needs fixing (see "What needs fixing" below)
 - Phase 6 (Worker + deploy): NOT STARTED — arq worker + Railway
-- Phase 7 (Gmail inbox): NOT STARTED — placeholder UI only
+- Phase 7 (Inbox): NOT STARTED — decided on email-forwarding approach (Option 4) for v1, OAuth for v2
 
-## What was done this session (2026-05-04)
+## What was done this session (2026-05-04, session 3)
 
-### CI fixes (was fully broken)
-- Fixed 157 ruff lint errors (N818 exception naming, TCH import rules, B904, E741, B008)
-- Added `per-file-ignores` for TCH003 on Pydantic models (they need runtime imports)
-- Fixed 41 mypy strict-mode errors across 23 files
-- CI now passes all 4 steps: ruff check, ruff format, mypy, pytest (10/10)
+### Phase 5: Auto-submit via Playwright
 
-### Distance-based location filtering
-- Added `PreferredLocation` model with `name` + `radius_miles` (default 50mi)
-- Added `infrastructure/geo/geocoder.py` — geopy/Nominatim geocoding with LRU cache + haversine distance
-- `_location_ok()` now uses `is_within_radius()` instead of substring matching
-- Falls back to substring match if geocoding fails
-- Backward compatible: old `list[str]` data auto-converts with 50mi default
-- Profile UI has per-location name + radius inputs with add/remove buttons
-- Added `geopy` dependency to pyproject.toml
+#### Research findings
+- Greenhouse/Lever public APIs require **employer-owned API keys** for submission — third parties can't use them
+- All auto-apply tools (Massive, Sonara, etc.) use **server-side headless browsers** (Playwright/Selenium)
+- Massive has ~20% failure rate from CAPTCHAs, WAFs, email verification — same issues we hit
+- The Greenhouse **embedded form** (`job-boards.greenhouse.io/embed/job_app?for={slug}&token={id}`) stays on greenhouse.io and avoids company WAF redirects
 
-### Dashboard pipeline (discover + match from UI)
-- Added `POST /api/pipeline/run` and `GET /api/pipeline/status` endpoints
-- "Discover & Match Jobs" panel on dashboard with keyword input + source selector
-- Live progress via HTMX polling (every 1s):
-  - Step 1/2: Discovering — counters tick up per-source (fetched/new/dupes)
-  - Step 2/2: Scoring — real percentage bar (scored/total), matches counter, sub-status text
-- Per-user lock prevents concurrent pipeline runs
-- Pipeline scores jobs one-by-one (not batched) for live progress updates
-- Saves matches in batches of 10 (crash-safe)
-- 0.3s delay between LLM calls to avoid Anthropic 429 rate limits
+#### What's built and working
+- `PlaywrightSubmitter` in `infrastructure/submission/browser.py` — headless Chromium fills Greenhouse forms
+- Form filling proven working on Unity, Datadog, JetBrains, Stripe forms:
+  - Name, email, phone, country (custom dropdown with type-to-search)
+  - Location (autocomplete with suggestion click)
+  - Resume upload via JS DataTransfer (the only method that works — native set_input_files and file_chooser don't trigger Greenhouse's React state)
+  - Preferred First Name (detected by label text)
+  - All custom question dropdowns (click to open popup, select first option)
+  - Demographic dropdowns (Gender, Ethnicity — found by label)
+  - Native `<select>` elements, checkboxes
+- Pre-submit and post-submit **screenshots** saved as proof in `data/screenshots/`
+- Screenshot viewable via "Proof" button in Applied tab
+- `ats_apply_url` stored at discovery time (canonical Greenhouse API URL per job)
+- `posted_at` field on jobs (captured from Greenhouse `updated_at` / Lever `createdAt`)
+- DB migrations 003 (ats_apply_url) and 004 (posted_at)
+- Backfilled existing jobs with ats_apply_url
 
-### Job deduplication (never re-process scored jobs)
-- `list_unmatched()` now uses SQL `NOT IN` subquery to exclude already-scored jobs
-- Pipeline saves zero-score Match entries for filtered/skipped jobs so they're never re-scored
-- `list_top()` filters `final_score > 0` so zero-score entries don't appear in Matched tab
-- Second pipeline run is instant: "No new jobs to score"
+#### UI improvements this session
+- **ATS badges** (blue Greenhouse / purple Lever) in Matched tab
+- **Source filter** (All / Greenhouse / Lever) in Matched tab
+- **Posted date** displayed per job (shows after re-discovery)
+- **Status column** in Applied tab: "Auto-submitted" (green) / "Needs code" (yellow) / "Manual" (gray)
+- **Confirmation ID** and timestamp for auto-submitted jobs
+- **"Proof" button** — view submission screenshot
+- **"Needs code" input** — for jobs requiring email verification, shows text input + Verify button
+- Idempotency label: "Auto-submitted" shown when re-clicking already-submitted jobs
 
-### Keyword matching improvements
-- Changed from AND logic to OR logic: ANY query word in title matches
-- Also searches job descriptions (not just titles)
-- Added ~80 enterprise/fintech/.NET companies to Greenhouse + Lever slug lists
+#### Fixes
+- Disabled inline geocoding (Nominatim rate-limits block page loads for minutes) — uses substring matching only
+- `ApplicationStatus` enum updated with `applying`, `applied_manual`, `auto_applied`
+- Applications use job's real `ats_type` (not hardcoded "manual")
+- `update_submission` repo method saves screenshot_path
 
-### Match threshold setting
-- Added `min_match_score` (0-100) to Profile model, persisted in JSON data column
-- Slider on profile page with 5 presets: Show all (0%), Relaxed (40%), Balanced (55%), Focused (70%), Sniper (80%)
-- Context-aware hint text with expected reply rates per level
-- Jobs page uses profile threshold as default filter (overridable via URL param)
+### What needs fixing next session
 
-### Toast notifications (BookLibrary style)
-- Global `showToast()` JS function using existing toast CSS
-- Toasts for: save preferences, upload/delete/set-primary resume, pipeline complete/error, OAuth login
-- Toast from URL params after redirects (auto-cleaned from URL)
-- 5s auto-dismiss with fade-out animation
-- Added `hx-boost="false"` to all profile forms so redirects execute JS properly
+**Verification code flow is broken.** The issue:
+1. Some companies (Datadog, JetBrains) show email verification after form submit
+2. User gets a code via email, enters it in the "Needs code" input, clicks Verify
+3. The verify endpoint (`POST /api/applications/{id}/verify`) opens a FRESH browser, re-fills the form, submits (triggers NEW verification code), then tries to enter the OLD code
+4. Problem: the old code is expired because a new one was generated by re-submitting
+5. The correct approach: either (a) keep the browser session alive between submit and code entry, or (b) enter the NEW code (but user doesn't have it yet)
 
-### Spinner + progress bar CSS
-- Added `.spinner` class with keyframe animation to `components.css`
-- Animated progress bar in pipeline panel (percentage-based, not indeterminate)
+**Possible solutions:**
+- Store browser sessions in Redis/disk instead of in-memory (survives server restart)
+- Use a WebSocket to keep the browser page alive and stream status to the user
+- Accept that ~20% of jobs need manual completion (like Massive does) and show "Download tailored resume + Open job page" for those
+
+**Other issues to fix:**
+- Some forms fail on Country/Location dropdown (Stripe) — the autocomplete doesn't always select
+- Forms with checkbox-list location preferences (JetBrains) aren't checked
+- Need to handle Lever forms (only tested Greenhouse so far)
 
 ## What works in the UI today
 
-- `/` (Dashboard) — stats grid + "Discover & Match Jobs" pipeline panel + LLM budget + profile summary
-- `/jobs?tab=matched|applying|applied` — 3-tab job page; Apply Me fires background tailor; min_score from profile threshold
-- `/profile` — parsed profile + multi-resume CRUD + location prefs with radius + match threshold slider + remote preference
-- `/api/pipeline/run` + `/api/pipeline/status` — background discover+match with live progress
-- `/api/applications/{app_id}/resume/download` — tailored DOCX download
-- Toast notifications on all user actions
-- Theme toggle (dark/light)
-- Google OAuth login
+- `/` (Dashboard) — stats grid + pipeline panel + LLM budget + profile summary
+- `/jobs?tab=matched` — filterable by score + ATS source (Greenhouse/Lever), ATS badges, posted date, Apply Me button
+- `/jobs?tab=applying` — live spinner while tailoring + submitting
+- `/jobs?tab=applied` — Status column (Auto-submitted/Needs code/Manual), Proof screenshots, Verify code input, tailored resume Preview + Download
+- `/profile` — parsed profile + multi-resume CRUD + location prefs + match threshold slider
+- `/api/pipeline/run` + `/api/pipeline/status` — background discover+match
+- `/api/applications/{id}/screenshot` — view submission proof screenshot
+- `/api/applications/{id}/verify` — enter verification code (needs fixing)
+- Toast notifications, theme toggle, Google OAuth
 
 ## Known gotchas
 
-- HTMX `hx-boost="true"` on `<body>` intercepts form POSTs — must add `hx-boost="false"` on forms that redirect with toast params or need JS to re-execute after page load.
-- Anthropic API rate limits (429) when scoring many jobs — pipeline throttles with 0.3s delay between LLM calls. The tenacity retry on `AnthropicClient.complete()` handles transient 429s with exponential backoff.
-- First pipeline run downloads the embedding model (~1.3GB) from HuggingFace — subsequent runs use the cache at `~/.cache/huggingface/`.
-- `python-docx` returns paragraph styles as `None` for default-styled paragraphs; guard with `p.style.name if p.style else 'None'`.
-- LLM responses sometimes wrap JSON in markdown fences — both `parser.py` and `matching.py` strip them.
-- The `data/resumes/` directory is obsolete (superseded by `user_resumes` DB table).
-- On Mac: Postgres/Redis installed via Homebrew (`brew services start postgresql@16` / `brew services start redis`). DB user is `postgres` with password `postgres`.
+- HTMX `hx-boost="true"` on `<body>` intercepts form POSTs — must add `hx-boost="false"` on forms that redirect with toast params
+- Anthropic API rate limits (429) — pipeline throttles with 0.3s delay. Tenacity retry handles transient 429s
+- Geocoding disabled inline (Nominatim rate-limits). Only substring matching for location filter now
+- Greenhouse forms use custom JS dropdown widgets, NOT native `<select>`. Must click → wait → select `[role='option']`
+- Greenhouse resume upload requires JS DataTransfer hack. Neither `set_input_files` nor `file_chooser` triggers the React state
+- The embedded form URL (`job-boards.greenhouse.io/embed/job_app`) avoids company WAF redirects but still follows 302 for some companies
+- `--reload` mode kills in-memory browser sessions. Can't keep Playwright pages alive across server restarts
+- On Mac: `uv run playwright install chromium` needed after first clone
 
 ## Key files
 
-- `composition_root.py` — single wiring point; `Container` dataclass holds all repos + use cases
-- `domain/models/profile.py` — Profile with `PreferredLocation`, `min_match_score`, `remote_preference`
-- `infrastructure/geo/geocoder.py` — Nominatim geocoding + haversine + LRU cache
-- `infrastructure/sources/_company_lists.py` — ~200 Greenhouse + Lever company slugs
-- `infrastructure/sources/greenhouse.py` / `lever.py` — OR-based keyword matching + description search
-- `interfaces/api/routes/pipeline_routes.py` — dashboard pipeline (discover + match with live progress)
-- `interfaces/api/routes/jobs_routes.py` — 3-tab logic + `_location_ok()` + apply/status/download
-- `interfaces/api/routes/profile_routes.py` — resume CRUD + preferences + match threshold
-- `interfaces/api/templates/base.html` — toast container + `showToast()` JS
-- `interfaces/api/static/css/components.css` — spinner, toast, progress bar CSS
+- `composition_root.py` — wires PlaywrightSubmitter for greenhouse + lever
+- `infrastructure/submission/browser.py` — PlaywrightSubmitter + _FormFiller + complete_verification
+- `infrastructure/submission/greenhouse.py` — old HTTP POST submitter (unused, replaced by browser.py)
+- `infrastructure/submission/lever.py` — old HTTP POST submitter (unused, replaced by browser.py)
+- `application/use_cases/submit_application.py` — SubmitApplicationUseCase orchestrator
+- `application/use_cases/tailor_and_apply.py` — calls submit after tailoring
+- `domain/models/job.py` — Job with `ats_apply_url`, `posted_at`
+- `domain/models/application.py` — ApplicationStatus with `applying`, `applied_manual`, `auto_applied`
+- `interfaces/api/routes/jobs_routes.py` — apply, status, verify, screenshot endpoints
+- `interfaces/api/templates/jobs.html` — Matched filters + Applied status + Verify code input
+- `infrastructure/geo/geocoder.py` — geocoding disabled inline, substring matching only
+- `alembic/versions/003_add_ats_apply_url.py` + `004_add_posted_at.py`
 
 ## DB
 
-PostgreSQL via `asyncpg`. `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/job_agent` in `.env`. Apply migrations with `uv run alembic upgrade head`. Tables: users, profiles, jobs, matches, applications, llm_calls, credentials, events, system_state, user_resumes.
-
-## Next session — Phase 5 (Auto-submit)
-
-User wants Phase 5 (auto-submit to ATS). Build:
-1. `JobSubmitterPort` protocol in `domain/ports/`
-2. `GreenhouseSubmitter` + `LeverSubmitter` adapters in `infrastructure/submission/`
-3. Wire into `TailorAndApplyUseCase` — after tailoring, call submitter, set status to `auto_applied`
-4. Idempotency: check `application.submission_url` / `ats_confirmation_id` before re-submitting
-5. ToS-aware: never auto-submit to LinkedIn/Indeed (those stay assist-only)
-6. May need Playwright for form submission on ATS sites that don't have API endpoints
+PostgreSQL via `asyncpg`. Apply migrations with `uv run alembic upgrade head`. New columns: `jobs.ats_apply_url` (TEXT), `jobs.posted_at` (TIMESTAMP), `applications.screenshot_path` (already existed).

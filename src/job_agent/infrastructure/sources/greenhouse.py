@@ -120,6 +120,14 @@ class GreenhouseSource:
             company = slug.replace("-", " ").title()
             external_id = str(item.get("id", ""))
             url_field: str = item.get("absolute_url", "")
+            # Greenhouse returns updated_at as Unix timestamp (ms)
+            updated_at_ms = item.get("updated_at")
+            posted_at = (
+                datetime.fromtimestamp(updated_at_ms / 1000, tz=UTC) if updated_at_ms else None
+            )
+
+            # Build the canonical API submission URL while we still have the slug
+            apply_url = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs/{external_id}"
 
             jobs.append(
                 Job(
@@ -135,6 +143,8 @@ class GreenhouseSource:
                     url=url_field,
                     description=description,
                     ats_type="greenhouse",
+                    ats_apply_url=apply_url,
+                    posted_at=posted_at,
                     discovered_at=datetime.now(UTC),
                 )
             )

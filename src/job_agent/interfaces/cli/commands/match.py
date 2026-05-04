@@ -59,7 +59,7 @@ def run(
         table.add_column("Location", min_width=16)
         table.add_column("Reasoning")
 
-        for i, (match, title, company, location, _url, _remote) in enumerate(rows, 1):
+        for i, (match, title, company, location, _url, _remote, *_rest) in enumerate(rows, 1):
             score_style = (
                 "green"
                 if match.final_score >= 70
@@ -114,7 +114,7 @@ def top_cmd(
         table.add_column("Location", min_width=14)
         table.add_column("Reasoning")
 
-        for i, (match, title, company, location, _url, _remote) in enumerate(rows, 1):
+        for i, (match, title, company, location, _url, _remote, *_rest) in enumerate(rows, 1):
             score_style = (
                 "green"
                 if match.final_score >= 70

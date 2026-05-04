@@ -22,7 +22,9 @@ class Job(BaseModel):
     url: str
     description: str
     ats_type: str = "unknown"
+    ats_apply_url: str = ""
     salary_min: int | None = None
     salary_max: int | None = None
 
+    posted_at: datetime | None = None
     discovered_at: datetime

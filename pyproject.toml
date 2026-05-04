@@ -83,7 +83,7 @@ files = ["src"]
 ignore_missing_imports = false
 
 [[tool.mypy.overrides]]
-module = ["sentence_transformers.*", "docxtpl.*", "vcrpy.*", "apscheduler.*", "arq.*"]
+module = ["sentence_transformers.*", "docxtpl.*", "vcrpy.*", "apscheduler.*", "arq.*", "playwright.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

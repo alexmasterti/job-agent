@@ -68,8 +68,8 @@ class MatchRepository:
 
     async def list_top(
         self, user_id: uuid.UUID, limit: int = 50
-    ) -> list[tuple[Match, str, str, str, str, bool]]:
-        """Return top matches joined with job title/company/location/url/remote."""
+    ) -> list[tuple[Match, str, str, str, str, bool, str, object]]:
+        """Return top matches joined with job title/company/location/url/remote/ats_type/posted_at."""
         async with self._sf() as s:
             rows = (
                 await s.execute(
@@ -80,6 +80,8 @@ class MatchRepository:
                         JobRow.location,
                         JobRow.url,
                         JobRow.remote,
+                        JobRow.ats_type,
+                        JobRow.posted_at,
                     )
                     .join(JobRow, MatchRow.job_id == JobRow.id)
                     .where(MatchRow.user_id == user_id, MatchRow.final_score > 0)
@@ -96,6 +98,8 @@ class MatchRepository:
                 r.location,
                 r.url,
                 r.remote,
+                r.ats_type,
+                r.posted_at,
             )
             for r in rows
         ]

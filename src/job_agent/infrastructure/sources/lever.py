@@ -123,6 +123,14 @@ class LeverSource:
             company = slug.replace("-", " ").title()
             external_id: str = item.get("id", "")
             url_field: str = item.get("hostedUrl", "")
+            # Lever returns createdAt as Unix timestamp (ms)
+            created_at_ms = item.get("createdAt")
+            posted_at = (
+                datetime.fromtimestamp(created_at_ms / 1000, tz=UTC) if created_at_ms else None
+            )
+
+            # Build the canonical form submission URL while we still have the slug
+            apply_url = f"https://jobs.lever.co/{slug}/{external_id}/apply"
 
             jobs.append(
                 Job(
@@ -138,6 +146,8 @@ class LeverSource:
                     url=url_field,
                     description=description,
                     ats_type="lever",
+                    ats_apply_url=apply_url,
+                    posted_at=posted_at,
                     discovered_at=datetime.now(UTC),
                 )
             )

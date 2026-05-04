@@ -6,7 +6,6 @@ Results are cached in-memory for the process lifetime to avoid repeated lookups.
 
 from __future__ import annotations
 
-import functools
 from math import acos, cos, radians, sin
 
 import structlog
@@ -15,20 +14,32 @@ from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 
 log = structlog.get_logger()
 
-_geocoder = Nominatim(user_agent="job-agent/0.1", timeout=5)
+_geocoder = Nominatim(user_agent="job-agent/0.1", timeout=2)
+
+# Skip geocoding entirely — use substring matching only.
+# Nominatim rate-limits at 1 req/sec which blocks page loads for minutes
+# when there are hundreds of unique job locations. Geocoding should be
+# done as a background job, not inline during page render.
+_GEOCODING_DISABLED = True
+
+# Cache for when geocoding is enabled
+_cache: dict[str, tuple[float, float] | None] = {}
 
 
-@functools.lru_cache(maxsize=512)
 def geocode(location: str) -> tuple[float, float] | None:
     """Return (lat, lng) for a location string, or None if not found."""
+    if _GEOCODING_DISABLED:
+        return None
+    if location in _cache:
+        return _cache[location]
     try:
         result = _geocoder.geocode(location)
-        if result is None:
-            log.debug("geo.not_found", location=location)
-            return None
-        return (result.latitude, result.longitude)
+        coords = (result.latitude, result.longitude) if result else None
+        _cache[location] = coords
+        return coords
     except (GeocoderTimedOut, GeocoderUnavailable, Exception) as exc:
         log.warning("geo.error", location=location, error=str(exc))
+        _cache[location] = None
         return None
 
 

@@ -102,6 +102,8 @@ class JobRow(Base):
     url: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     ats_type: Mapped[str] = mapped_column(String(64), nullable=False, default="unknown")
+    ats_apply_url: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     salary_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
     salary_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
