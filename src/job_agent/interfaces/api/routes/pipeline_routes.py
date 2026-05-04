@@ -42,10 +42,12 @@ class PipelineState:
     new_jobs: int = 0
     skipped_jobs: int = 0
     # Matching progress
+    total_to_score: int = 0
     scored: int = 0
     saved: int = 0
     filtered: int = 0
     skipped_low_embedding: int = 0
+    status_detail: str = ""
     # Completion
     error: str = ""
     finished_at: datetime | None = None
@@ -155,16 +157,63 @@ async def _run_pipeline(
                     error=str(exc),
                 )
 
-        # ── Phase 2: Match ───────────────────────────────────────────
+        # ── Phase 2: Match (with per-job progress) ─────────────────
         state.stage = _STAGE_MATCHING
-        match_result = await container.match_jobs.execute(
-            user_id=user_id,
-            limit=500,
-        )
-        state.scored = match_result.scored
-        state.saved = match_result.saved
-        state.filtered = match_result.filtered
-        state.skipped_low_embedding = match_result.skipped_low_embedding
+        state.status_detail = "Loading embedding model..."
+
+        profile = await container.profile_repo.get_by_user(user_id)
+        if not profile:
+            state.status_detail = "No profile found — skipping matching"
+            state.stage = _STAGE_DONE
+            state.finished_at = datetime.now(UTC)
+            return
+
+        all_jobs = await container.job_repo.list_unmatched(user_id, limit=500)
+        already_scored = await container.match_repo.get_scored_job_ids(user_id)
+        jobs = [j for j in all_jobs if j.id not in already_scored]
+        state.total_to_score = len(jobs)
+
+        if not jobs:
+            state.status_detail = "No new jobs to score"
+            state.stage = _STAGE_DONE
+            state.finished_at = datetime.now(UTC)
+            return
+
+        state.status_detail = f"Encoding {len(jobs)} jobs..."
+        from job_agent.domain.services.matching import _profile_to_text
+
+        profile_text = _profile_to_text(profile)
+        profile_emb = container.encoder.encode(profile_text)
+        job_texts = [f"{j.title} {j.description[:2000]}" for j in jobs]
+        job_embs = container.encoder.encode_batch(job_texts)
+
+        state.status_detail = "Scoring with LLM..."
+        matching_svc = container.match_jobs._matching
+        sem = asyncio.Semaphore(5)
+        matches = []
+
+        for job, job_emb in zip(jobs, job_embs, strict=False):
+            try:
+                async with sem:
+                    result = await matching_svc.score(user_id, profile, job, job_emb, profile_emb)
+            except Exception as exc:
+                log.warning("pipeline.score_error", job_id=str(job.id), error=str(exc))
+                result = None
+
+            state.scored += 1
+            if result is None:
+                passes, _ = matching_svc.passes_hard_filters(profile, job)
+                if not passes:
+                    state.filtered += 1
+                else:
+                    state.skipped_low_embedding += 1
+            else:
+                matches.append(result)
+                state.saved = len(matches)
+            state.status_detail = f"Scored {state.scored}/{state.total_to_score}"
+
+        if matches:
+            await container.match_repo.save_many(matches)
 
         state.stage = _STAGE_DONE
         state.finished_at = datetime.now(UTC)
@@ -175,6 +224,20 @@ async def _run_pipeline(
         state.finished_at = datetime.now(UTC)
     finally:
         _pipeline_locks.pop(user_id, None)
+
+
+def _progress_bar(pct: int, color: str = "var(--accent-light,#7c3aed)") -> str:
+    """Render a percentage progress bar."""
+    return (
+        f'<div style="margin-top:var(--space-3)">'
+        f'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        f'<span style="font-size:12px;font-weight:600;color:var(--text-muted)">{pct}%</span>'
+        f"</div>"
+        f'<div style="height:8px;border-radius:4px;background:rgba(124,58,237,0.1);overflow:hidden">'
+        f'<div style="height:100%;width:{pct}%;border-radius:4px;background:{color};'
+        f'transition:width 0.4s ease"></div>'
+        f"</div></div>"
+    )
 
 
 def _render_progress(state: PipelineState) -> str:
@@ -189,100 +252,93 @@ def _render_progress(state: PipelineState) -> str:
         else ""
     )
 
-    # Stage-specific content
+    # Compute percentage
     if state.stage == _STAGE_DISCOVERING:
-        stage_num = "1/2"
-        label = f"Discovering &ldquo;{state.keyword}&rdquo; from job boards..."
+        pct = 0  # indeterminate — we don't know total companies
+    elif state.stage == _STAGE_MATCHING:
+        pct = int(state.scored / state.total_to_score * 100) if state.total_to_score > 0 else 0
+    elif state.stage == _STAGE_DONE:
+        pct = 100
+    else:
+        pct = 0
+
+    # Build content per stage
+    if state.stage == _STAGE_DISCOVERING:
+        label = f"Step 1/2 — Discovering &ldquo;{state.keyword}&rdquo;..."
+        sub = state.status_detail or "Querying job boards..."
+        bar = _progress_bar(min(pct, 99), "var(--accent-light,#7c3aed)")
         counters = (
             f'<div style="display:flex;gap:var(--space-5);margin-top:var(--space-3)">'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--accent-light)">{state.discovered}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">fetched</div></div>'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--green,#22c55e)">{state.new_jobs}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">new</div></div>'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--text-dim)">{state.skipped_jobs}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">duplicates</div></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--accent-light)">{state.discovered}</span>'
+            f' <span style="font-size:12px;color:var(--text-dim)">fetched</span></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--green,#22c55e)">{state.new_jobs}</span>'
+            f' <span style="font-size:12px;color:var(--text-dim)">new</span></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--text-dim)">{state.skipped_jobs}</span>'
+            f' <span style="font-size:12px;color:var(--text-dim)">dupes</span></div>'
             f"</div>"
         )
     elif state.stage == _STAGE_MATCHING:
-        stage_num = "2/2"
-        label = "Scoring jobs against your profile (embeddings + LLM)..."
+        label = f"Step 2/2 — Scoring {state.total_to_score} jobs..."
+        sub = state.status_detail or "Initializing..."
+        bar = _progress_bar(min(pct, 99), "var(--accent-light,#7c3aed)")
         counters = (
             f'<div style="display:flex;gap:var(--space-5);margin-top:var(--space-3)">'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--accent-light)">{state.new_jobs}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">discovered</div></div>'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--green,#22c55e)">{state.scored}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">scored</div></div>'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--text-muted)">{state.saved}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">saved</div></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--accent-light)">'
+            f'{state.scored}</span><span style="font-size:13px;color:var(--text-dim)">/{state.total_to_score}'
+            f'</span> <span style="font-size:12px;color:var(--text-dim)">scored</span></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--green,#22c55e)">{state.saved}</span>'
+            f' <span style="font-size:12px;color:var(--text-dim)">matches</span></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--text-dim)">{state.filtered}</span>'
+            f' <span style="font-size:12px;color:var(--text-dim)">filtered</span></div>'
             f"</div>"
         )
     elif state.stage == _STAGE_DONE:
-        stage_num = ""
         label = "Pipeline complete!"
+        sub = ""
+        bar = _progress_bar(100, "var(--green,#22c55e)")
         counters = (
             f'<div style="display:flex;gap:var(--space-5);margin-top:var(--space-3)">'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--accent-light)">{state.discovered}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">fetched</div></div>'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--green,#22c55e)">{state.new_jobs}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">new jobs</div></div>'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--accent-light)">{state.scored}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">scored</div></div>'
-            f'<div><span style="font-size:20px;font-weight:700;color:var(--green,#22c55e)">{state.saved}</span>'
-            f'<div style="font-size:11px;color:var(--text-dim)">matches</div></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--accent-light)">{state.discovered}</span>'
+            f' <span style="font-size:12px;color:var(--text-dim)">fetched</span></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--green,#22c55e)">{state.new_jobs}</span>'
+            f' <span style="font-size:12px;color:var(--text-dim)">new</span></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--accent-light)">{state.scored}</span>'
+            f' <span style="font-size:12px;color:var(--text-dim)">scored</span></div>'
+            f'<div><span style="font-size:22px;font-weight:700;color:var(--green,#22c55e)">{state.saved}</span>'
+            f' <span style="font-size:12px;color:var(--text-dim)">matches</span></div>'
             f"</div>"
         )
     elif state.stage == _STAGE_ERROR:
-        stage_num = ""
         label = "Pipeline failed"
-        counters = f'<div style="font-size:13px;color:var(--red,#ef4444);margin-top:var(--space-2)">{state.error[:200]}</div>'
+        sub = state.error[:200]
+        bar = ""
+        counters = ""
     else:
         return '<div id="pipeline-progress"></div>'
 
     # Icon
     if is_active:
-        icon = '<span class="spinner" style="width:20px;height:20px"></span>'
+        icon = '<span class="spinner" style="width:18px;height:18px"></span>'
     elif state.stage == _STAGE_DONE:
-        icon = '<span style="font-size:20px">&#9989;</span>'
+        icon = '<span style="font-size:18px">&#9989;</span>'
     else:
-        icon = '<span style="font-size:20px">&#10060;</span>'
+        icon = '<span style="font-size:18px">&#10060;</span>'
 
-    # Progress bar (indeterminate for active, full for done)
-    if is_active:
-        bar = (
-            '<div style="margin-top:var(--space-3);height:4px;border-radius:2px;'
-            'background:rgba(124,58,237,0.15);overflow:hidden">'
-            '<div style="height:100%;width:30%;border-radius:2px;'
-            'background:var(--accent-light,#7c3aed);animation:progress-slide 1.5s ease-in-out infinite"></div>'
-            "</div>"
-        )
-    elif state.stage == _STAGE_DONE:
-        bar = (
-            '<div style="margin-top:var(--space-3);height:4px;border-radius:2px;'
-            'background:rgba(34,197,94,0.15)">'
-            '<div style="height:100%;width:100%;border-radius:2px;'
-            'background:var(--green,#22c55e);transition:width 0.5s"></div>'
-            "</div>"
-        )
-    else:
-        bar = ""
+    # Sub-status line
+    sub_html = (
+        f'<div style="font-size:12px;color:var(--text-dim);margin-top:2px">{sub}</div>'
+        if sub
+        else ""
+    )
 
-    # Stage badge
-    badge = ""
-    if stage_num:
-        badge = (
-            f'<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;'
-            f'background:var(--accent-soft,rgba(124,58,237,0.1));color:var(--accent-light,#7c3aed)">'
-            f"Step {stage_num}</span>"
-        )
-
-    # Action link
+    # Action
     action = ""
     if state.stage == _STAGE_DONE and state.saved > 0:
         action = (
             '<a href="/jobs?tab=matched" class="btn btn-primary btn-sm" '
-            'style="margin-top:var(--space-3)">View Matches &rarr;</a>'
+            'style="margin-top:var(--space-3);display:inline-block">View Matches &rarr;</a>'
         )
-    elif state.stage == _STAGE_DONE and state.saved == 0 and state.new_jobs == 0:
+    elif state.stage == _STAGE_DONE and state.new_jobs == 0:
         action = (
             '<div style="font-size:12px;color:var(--text-dim);margin-top:var(--space-2)">'
             "No new jobs found. Try a different keyword or check back later.</div>"
@@ -295,17 +351,11 @@ def _render_progress(state: PipelineState) -> str:
         f'<div style="display:flex;align-items:center;gap:var(--space-3)">'
         f"{icon}"
         f'<div style="flex:1">'
-        f'<div style="display:flex;align-items:center;gap:var(--space-2)">'
-        f'<span style="font-size:14px;font-weight:600">{label}</span>'
-        f"{badge}</div>"
+        f'<div style="font-size:14px;font-weight:600">{label}</div>'
+        f"{sub_html}"
         f"</div></div>"
         f"{bar}"
         f"{counters}"
         f"{action}"
         f"</div>"
-        f"<style>"
-        f"@keyframes progress-slide {{"
-        f"0% {{ transform: translateX(-100%); }}"
-        f"100% {{ transform: translateX(400%); }}"
-        f"}}</style>"
     )
