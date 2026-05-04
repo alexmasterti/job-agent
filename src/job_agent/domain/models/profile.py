@@ -77,6 +77,8 @@ class Profile(BaseModel):
     preferred_locations: list[PreferredLocation] = Field(default_factory=list)
     # "remote_only" | "hybrid_ok" | "any"
     remote_preference: str = "any"
+    # Minimum match score (0-100) to show in the Matched tab
+    min_match_score: int = 0
 
     @field_validator("preferred_locations", mode="before")
     @classmethod

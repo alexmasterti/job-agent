@@ -63,6 +63,7 @@ async def profile_page(request: Request) -> HTMLResponse | RedirectResponse:
 
     preferred_locations = profile.preferred_locations if profile else []
     remote_preference = profile.remote_preference if profile else "any"
+    min_match_score = profile.min_match_score if profile else 0
 
     # Convert PreferredLocation objects to dicts for template
     loc_dicts = [{"name": pl.name, "radius_miles": pl.radius_miles} for pl in preferred_locations]
@@ -76,6 +77,7 @@ async def profile_page(request: Request) -> HTMLResponse | RedirectResponse:
             "resumes": resumes,
             "preferred_locations": loc_dicts,
             "remote_preference": remote_preference,
+            "min_match_score": min_match_score,
         },
     )
 
@@ -107,8 +109,15 @@ async def save_preferences(request: Request) -> RedirectResponse:
         if idx > 50:
             break
 
+    # Match threshold
+    try:
+        min_match_score = int(str(form.get("min_match_score", "0")))
+    except ValueError:
+        min_match_score = 0
+    min_match_score = max(0, min(100, min_match_score))
+
     container = request.app.state.container
-    await container.profile_repo.save_preferences(user_id, locations, remote_pref)
+    await container.profile_repo.save_preferences(user_id, locations, remote_pref, min_match_score)
 
     return RedirectResponse("/profile", status_code=303)
 

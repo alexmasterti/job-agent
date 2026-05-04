@@ -27,6 +27,7 @@ class ProfileRepository:
         user_id: uuid.UUID,
         preferred_locations: list[dict[str, object]],
         remote_preference: str,
+        min_match_score: int = 0,
     ) -> None:
         async with self._sf() as s, s.begin():
             row = await s.scalar(select(ProfileRow).where(ProfileRow.user_id == user_id))
@@ -34,6 +35,7 @@ class ProfileRepository:
                 data = dict(row.data or {})
                 data["preferred_locations"] = preferred_locations
                 data["remote_preference"] = remote_preference
+                data["min_match_score"] = min_match_score
                 row.data = data
 
     async def save(self, profile: Profile) -> Profile:

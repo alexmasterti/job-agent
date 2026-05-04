@@ -185,6 +185,46 @@
                     Leave empty to show all jobs.
                 </p>
             </div>
+
+            <!-- Match Threshold -->
+            <div>
+                <label style="font-size:13px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:var(--space-2)">
+                    Match threshold
+                    <span style="font-weight:400;color:var(--text-dim)">(only show jobs scoring above this)</span>
+                </label>
+
+                <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3)">
+                    <input type="range" name="min_match_score" id="threshold-slider"
+                        min="0" max="100" step="5" value="{{ min_match_score }}"
+                        oninput="updateThreshold(this.value)"
+                        style="flex:1;accent-color:var(--accent-light,#7c3aed)">
+                    <span id="threshold-value" style="font-size:20px;font-weight:700;color:var(--accent-light);min-width:48px;text-align:right">{{ min_match_score }}%</span>
+                </div>
+
+                <!-- Recommended presets -->
+                <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-3)">
+                    {% for val, label, desc in [
+                        (0, 'Show all', 'No filter — see every discovered job'),
+                        (40, 'Relaxed', 'Cast a wide net — includes partial matches'),
+                        (55, 'Balanced', 'Good mix of relevance and volume'),
+                        (70, 'Focused', 'Strong matches only — higher reply rate'),
+                        (80, 'Sniper', 'Near-perfect fit — fewer but best matches')
+                    ] %}
+                    <button type="button" onclick="setThreshold({{ val }})"
+                        id="preset-{{ val }}"
+                        style="padding:4px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;
+                        border:1px solid var(--border);background:var(--bg-card-hover);color:var(--text-muted);
+                        transition:all 0.15s"
+                        title="{{ desc }}">
+                        {{ label }} ({{ val }}%)
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <div id="threshold-hint" style="font-size:12px;color:var(--text-dim);padding:var(--space-2) var(--space-3);border-radius:var(--radius-sm);background:var(--bg-card-hover);border:1px solid var(--border)">
+                </div>
+            </div>
+
             <div>
                 <button type="submit" class="btn btn-primary btn-sm">Save preferences</button>
             </div>
@@ -223,5 +263,70 @@ document.getElementById('prefs-form').addEventListener('submit', function() {
         if (radiusInput) radiusInput.name = 'loc_radius_' + i;
     });
 });
+
+// ── Match threshold slider ──
+const hints = {
+    0:  {text: 'Show all — No filter, every discovered job appears. Good for exploring what is out there.', color: 'var(--text-dim)'},
+    5:  {text: 'Show all — No filter, every discovered job appears.', color: 'var(--text-dim)'},
+    10: {text: 'Very loose — Almost everything shows up.', color: 'var(--text-dim)'},
+    15: {text: 'Very loose — Almost everything shows up.', color: 'var(--text-dim)'},
+    20: {text: 'Very loose — Almost everything shows up.', color: 'var(--text-dim)'},
+    25: {text: 'Loose — Includes weak matches. Expect low reply rates.', color: '#f59e0b'},
+    30: {text: 'Loose — Includes weak matches. Expect low reply rates.', color: '#f59e0b'},
+    35: {text: 'Loose — Includes weak matches. Expect low reply rates.', color: '#f59e0b'},
+    40: {text: 'Relaxed — Wide net, includes partial skill overlaps. ~2-4% reply rate typical.', color: '#f59e0b'},
+    45: {text: 'Relaxed — Wide net, includes partial skill overlaps. ~2-4% reply rate typical.', color: '#f59e0b'},
+    50: {text: 'Moderate — Decent relevance. A good starting point if you have many matches.', color: '#eab308'},
+    55: {text: 'Balanced — Good trade-off between volume and quality. ~5-8% reply rate typical. Recommended for most users.', color: '#22c55e'},
+    60: {text: 'Balanced — Good relevance with reasonable volume. ~5-8% reply rate typical.', color: '#22c55e'},
+    65: {text: 'Focused — Strong skill and experience alignment. ~8-12% reply rate typical.', color: '#22c55e'},
+    70: {text: 'Focused — Strong matches. Higher reply rate but fewer results. ~10-15% typical.', color: '#22c55e'},
+    75: {text: 'Selective — Very strong fit. Expect good interview conversion. ~12-18% reply rate.', color: '#3b82f6'},
+    80: {text: 'Sniper — Near-perfect matches only. Highest quality, fewest results. ~15-25% reply rate.', color: '#3b82f6'},
+    85: {text: 'Sniper — Near-perfect fit. Very few results but excellent conversion.', color: '#3b82f6'},
+    90: {text: 'Ultra-selective — Almost exact match required. May see very few or no results.', color: '#8b5cf6'},
+    95: {text: 'Ultra-selective — Extremely strict. Only near-identical role/skill matches.', color: '#8b5cf6'},
+    100:{text: 'Perfect match only — Unrealistic for most searches.', color: '#8b5cf6'},
+};
+
+function getHint(val) {
+    val = parseInt(val);
+    // Round down to nearest 5
+    const key = Math.floor(val / 5) * 5;
+    return hints[key] || hints[0];
+}
+
+function updateThreshold(val) {
+    document.getElementById('threshold-value').textContent = val + '%';
+    const hint = getHint(val);
+    const el = document.getElementById('threshold-hint');
+    el.innerHTML = hint.text;
+    el.style.borderLeftColor = hint.color;
+    el.style.borderLeftWidth = '3px';
+
+    // Highlight matching preset
+    document.querySelectorAll('[id^="preset-"]').forEach(btn => {
+        const presetVal = btn.id.replace('preset-', '');
+        if (parseInt(presetVal) === parseInt(val)) {
+            btn.style.background = 'var(--accent-soft)';
+            btn.style.borderColor = 'var(--accent-light)';
+            btn.style.color = 'var(--accent-light)';
+            btn.style.fontWeight = '600';
+        } else {
+            btn.style.background = 'var(--bg-card-hover)';
+            btn.style.borderColor = 'var(--border)';
+            btn.style.color = 'var(--text-muted)';
+            btn.style.fontWeight = '400';
+        }
+    });
+}
+
+function setThreshold(val) {
+    document.getElementById('threshold-slider').value = val;
+    updateThreshold(val);
+}
+
+// Initialize hint on load
+updateThreshold({{ min_match_score }});
 </script>
 {% endblock %}

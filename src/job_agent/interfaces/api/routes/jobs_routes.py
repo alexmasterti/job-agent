@@ -69,7 +69,7 @@ async def jobs_page(
     request: Request,
     tab: str = "matched",
     page: int = 1,
-    min_score: int = 0,
+    min_score: int = -1,
 ) -> HTMLResponse | RedirectResponse:
     user_id = _get_user_id(request)
     if not user_id:
@@ -79,6 +79,11 @@ async def jobs_page(
     user = await container.user_repo.get_by_id(user_id)
     if not user:
         return RedirectResponse("/auth/login")
+
+    # Use profile threshold as default if no explicit min_score in URL
+    profile = await container.profile_repo.get_by_user(user_id)
+    if min_score < 0:
+        min_score = profile.min_match_score if profile else 0
 
     app_counts = await container.application_repo.counts(user_id)
     applying_count = app_counts.get("applying", 0)
@@ -108,7 +113,6 @@ async def jobs_page(
         ctx.update({"applied": rows, "match_scores": match_scores})
 
     else:  # matched
-        profile = await container.profile_repo.get_by_user(user_id)
         all_matches = await container.match_repo.list_top(user_id, limit=500)
         filtered = [
             (m, t, c, loc, u, r)
