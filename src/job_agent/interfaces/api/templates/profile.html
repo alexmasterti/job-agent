@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}Profile — Job Agent{% endblock %}
+{% block page_title %}Profile{% endblock %}
+
+{% block content %}
+{% if profile %}
+<!-- Profile card -->
+<div class="card" style="margin-bottom:var(--space-5)">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:var(--space-5)">
+        <div>
+            <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">{{ profile.full_name or '—' }}</h2>
+            <p style="font-size:14px;color:var(--text-muted);margin:0">{{ profile.headline or '' }}</p>
+        </div>
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;flex-shrink:0">
+            {{ (profile.full_name or '?')[0].upper() }}
+        </div>
+    </div>
+
+    {% if profile.summary %}
+    <div style="margin-bottom:var(--space-5)">
+        <div class="stat-label" style="margin-bottom:var(--space-2)">Summary</div>
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin:0">
+            {{ profile.summary[:300] }}{% if profile.summary | length > 300 %}…{% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    {% if profile.skills %}
+    <div style="margin-bottom:var(--space-5)">
+        <div class="stat-label" style="margin-bottom:var(--space-3)">Skills ({{ profile.skills | length }})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:var(--space-2)">
+            {% for skill in profile.skills %}
+            <span style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:var(--accent-soft);color:var(--accent-light);border:1px solid rgba(124,58,237,0.2)">{{ skill }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if profile.experience %}
+    <div>
+        <div class="stat-label" style="margin-bottom:var(--space-3)">Experience ({{ profile.experience | length }} roles)</div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            {% for exp in profile.experience %}
+            <div style="padding:var(--space-3);background:var(--bg-card-hover);border-radius:var(--radius-sm);border:1px solid var(--border)">
+                <div style="font-weight:600;font-size:14px">{{ exp.get('title', '—') }}</div>
+                <div style="font-size:13px;color:var(--text-muted);margin-top:2px">
+                    {{ exp.get('company', '') }}
+                    {% if exp.get('start_date') or exp.get('end_date') %}
+                    <span style="color:var(--text-dim)"> · {{ exp.get('start_date', '') }}{% if exp.get('end_date') %} – {{ exp.get('end_date') }}{% endif %}</span>
+                    {% endif %}
+                </div>
+                {% if exp.get('description') %}
+                <p style="font-size:12px;color:var(--text-dim);margin:var(--space-2) 0 0;line-height:1.5">
+                    {{ exp.get('description', '')[:200] }}{% if exp.get('description', '') | length > 200 %}…{% endif %}
+                </p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Resumes -->
+<div class="card" style="margin-bottom:var(--space-4)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)">
+        <h3 style="font-size:16px;font-weight:600;margin:0">My Resumes</h3>
+        <span style="font-size:12px;color:var(--text-dim)">Primary resume is used for tailoring</span>
+    </div>
+
+    {% if resumes %}
+    <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-5)">
+        {% for r in resumes %}
+        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-sm);border:1px solid {% if r.is_primary %}var(--accent-light){% else %}var(--border){% endif %};background:{% if r.is_primary %}var(--accent-soft){% else %}var(--bg-card-hover){% endif %}">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">
+                    <span style="font-weight:600;font-size:14px">{{ r.name }}</span>
+                    {% if r.is_primary %}
+                    <span style="font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:rgba(124,58,237,0.2);color:var(--accent-light)">Primary</span>
+                    {% endif %}
+                </div>
+                <div style="font-size:12px;color:var(--text-dim);margin-top:2px">
+                    {{ r.file_ext | upper | replace('.','') }} · uploaded {{ r.created_at.strftime('%b %d, %Y') }}
+                </div>
+            </div>
+            <div style="display:flex;gap:var(--space-2);flex-shrink:0">
+                <a href="/profile/resumes/{{ r.id }}/download" class="btn btn-secondary btn-sm" hx-boost="false">Download</a>
+                {% if not r.is_primary %}
+                <form method="post" action="/profile/resumes/{{ r.id }}/set-primary" style="display:inline">
+                    <button type="submit" class="btn btn-secondary btn-sm">Set Primary</button>
+                </form>
+                <form method="post" action="/profile/resumes/{{ r.id }}/delete" style="display:inline"
+                      onsubmit="return confirm('Delete this resume?')">
+                    <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--red)">Delete</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="padding:var(--space-4);text-align:center;color:var(--text-muted);font-size:14px;margin-bottom:var(--space-4)">
+        No resumes yet. Upload one below.
+    </div>
+    {% endif %}
+
+    <!-- Upload new resume -->
+    <form action="/profile/resumes/upload" method="post" enctype="multipart/form-data">
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <div style="display:flex;gap:var(--space-3);flex-wrap:wrap">
+                <input
+                    type="text"
+                    name="name"
+                    placeholder="Resume name (e.g. C# Focused, Python Focused)"
+                    style="flex:1;min-width:200px;padding:var(--space-2) var(--space-3);font-size:13px;font-family:inherit;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)"
+                >
+                <input
+                    type="file"
+                    name="file"
+                    accept=".pdf,.docx"
+                    required
+                    style="font-size:13px;color:var(--text-muted);flex:1;min-width:180px"
+                >
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--space-3)">
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);cursor:pointer">
+                    <input type="checkbox" name="set_primary" {% if not resumes %}checked{% endif %} style="accent-color:var(--accent-light)">
+                    Set as primary
+                </label>
+                <button type="submit" class="btn btn-primary btn-sm">Upload &amp; Parse</button>
+            </div>
+            <p style="font-size:12px;color:var(--text-dim);margin:0">
+                Accepts .pdf or .docx. Setting as primary re-parses your profile and uses this resume for tailoring.
+            </p>
+        </div>
+    </form>
+</div>
+
+<!-- Location Preferences -->
+<div class="card" style="margin-bottom:var(--space-4)">
+    <h3 style="font-size:16px;font-weight:600;margin-bottom:var(--space-4)">Location Preferences</h3>
+    <form action="/profile/preferences" method="post">
+        <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+            <div>
+                <label style="font-size:13px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:var(--space-2)">Remote preference</label>
+                <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+                    {% for val, label in [('remote_only','Remote only'),('hybrid_ok','Hybrid OK'),('any','Any / no filter')] %}
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:13px;{% if remote_preference == val %}background:var(--accent-soft);border-color:var(--accent-light);color:var(--accent-light);font-weight:600;{% endif %}">
+                        <input type="radio" name="remote_preference" value="{{ val }}" {% if remote_preference == val %}checked{% endif %} style="accent-color:var(--accent-light)">
+                        {{ label }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div>
+                <label style="font-size:13px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:var(--space-2)">
+                    Preferred locations
+                    <span style="font-weight:400;color:var(--text-dim)">(one per line — e.g. Boston, Massachusetts, New York)</span>
+                </label>
+                {% if preferred_locations %}
+                <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);margin-bottom:var(--space-3)">
+                    {% for loc in preferred_locations %}
+                    <span style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:var(--accent-soft);color:var(--accent-light);border:1px solid rgba(124,58,237,0.2)">{{ loc }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <textarea
+                    name="preferred_locations"
+                    rows="4"
+                    placeholder="Boston&#10;Massachusetts&#10;Cambridge"
+                    style="width:100%;padding:var(--space-2) var(--space-3);font-size:13px;font-family:inherit;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);resize:vertical;box-sizing:border-box"
+                >{{ preferred_locations | join('\n') }}</textarea>
+                <p style="font-size:12px;color:var(--text-dim);margin-top:var(--space-2)">
+                    Jobs not matching any entry are hidden from Matched. Leave empty to show all. Remote jobs always pass when "Hybrid OK" or "Remote only" is selected.
+                </p>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary btn-sm">Save preferences</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

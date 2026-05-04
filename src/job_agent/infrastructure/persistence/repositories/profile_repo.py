@@ -18,6 +18,16 @@ class ProfileRepository:
             row = await s.scalar(select(ProfileRow).where(ProfileRow.user_id == user_id))
         return _to_domain(row) if row else None
 
+    async def save_preferences(self, user_id: uuid.UUID, preferred_locations: list[str], remote_preference: str) -> None:
+        async with self._sf() as s:
+            async with s.begin():
+                row = await s.scalar(select(ProfileRow).where(ProfileRow.user_id == user_id))
+                if row:
+                    data = dict(row.data or {})
+                    data["preferred_locations"] = preferred_locations
+                    data["remote_preference"] = remote_preference
+                    row.data = data
+
     async def save(self, profile: Profile) -> Profile:
         async with self._sf() as s:
             async with s.begin():

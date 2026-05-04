@@ -1,0 +1,47 @@
+"""Curated company slug lists for each ATS.
+
+Errors (404, 422) are handled gracefully in each source adapter — unknown or
+defunct slugs are silently skipped so this list can be updated freely without
+breaking the discovery pipeline.
+"""
+
+from __future__ import annotations
+
+GREENHOUSE_SLUGS: list[str] = [
+    "airbnb", "stripe", "doordash", "lyft", "coinbase", "brex", "plaid",
+    "gusto", "zendesk", "twilio", "elastic", "confluent", "palantir",
+    "figma", "airtable", "cloudflare", "fastly", "pagerduty", "postman",
+    "mixpanel", "amplitude", "asana", "intercom", "discord", "dropbox",
+    "box", "mongodb", "snowflake", "hashicorp", "retool", "linear",
+    "benchling", "atlassian", "checkr", "rippling", "lattice", "robinhood",
+    "affirm", "carta", "ramp", "mercury", "deel", "justworks", "openai",
+    "anthropic", "huggingface", "scaleai", "wealthfront", "betterment",
+    "pilot", "vanta", "drata", "launchdarkly", "statsig", "eppo",
+    "sentry", "datadog", "newrelic", "splunk", "sumologic", "dynatrace",
+    "pendo", "heap", "glean", "coda", "craft", "loom", "miro",
+    "productboard", "appcues", "chameleon", "fullstory", "logrocket",
+    "segment", "rudderstack", "hightouch", "census", "fivetran", "airbyte",
+    "dbt-labs", "astronomer", "prefect", "dagster", "great-expectations",
+    "cohere", "together", "replicate", "modal", "fly", "render",
+    "railway", "supabase", "neon", "planetscale", "cockroachdb",
+    "yugabyte", "citus-data", "timescale", "influxdata", "questdb",
+    "clickhouse", "materialize", "starburst", "databricks",
+    "redpanda", "immerok", "decodable", "ververica",
+]
+
+LEVER_SLUGS: list[str] = [
+    "netflix", "squarespace", "duolingo", "peloton", "better", "chime",
+    "klarna", "wix", "zapier", "samsara", "verkada", "watershed",
+    "replit", "anduril", "scale", "shield-ai", "palantir",
+    "1password", "gitlab", "hashicorp", "vercel", "fly-io",
+    "cloudflare", "tailscale", "warpdev", "readme", "retool",
+    "loom", "figma", "notion", "linear", "coda", "miro",
+    "airtable", "monday", "clickup", "asana", "height",
+    "perplexity", "mistral", "groq", "together-ai",
+    "runway", "pika", "stability", "midjourney",
+    "cursor", "sourcegraph", "tabnine", "codeium",
+    "temporal", "inngest", "trigger",
+    "turso", "xata", "fauna", "convex",
+    "deno", "bun", "val-town",
+    "stedi", "shipbob", "flexport", "samsara",
+]

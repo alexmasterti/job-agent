@@ -10,7 +10,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from job_agent.config import Settings
 
-_COOKIE_NAME = "session"
+_COOKIE_NAME = "auth"
 _MAX_AGE_SECONDS = 30 * 24 * 3600  # 30 days
 
 

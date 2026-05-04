@@ -6,7 +6,10 @@ from pathlib import Path
 
 import sentry_sdk
 import structlog
-from fastapi import FastAPI
+import traceback
+
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from prometheus_client import make_asgi_app
@@ -15,9 +18,14 @@ from starlette.middleware.sessions import SessionMiddleware
 from job_agent.composition_root import build_container
 from job_agent.config import Settings
 from job_agent.interfaces.api.middleware.correlation import CorrelationIdMiddleware
+from job_agent.interfaces.api.routes.applications_routes import router as apps_router
 from job_agent.interfaces.api.routes.auth_routes import router as auth_router
 from job_agent.interfaces.api.routes.dashboard import router as dashboard_router
 from job_agent.interfaces.api.routes.health import router as health_router
+from job_agent.interfaces.api.routes.inbox_routes import router as inbox_router
+from job_agent.interfaces.api.routes.jobs_routes import router as jobs_router
+from job_agent.interfaces.api.routes.profile_routes import router as profile_router
+from job_agent.interfaces.api.routes.queue_routes import router as queue_router
 from job_agent.logging_config import configure_logging
 
 log = structlog.get_logger()
@@ -57,6 +65,17 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(dashboard_router)
+    app.include_router(jobs_router)
+    app.include_router(queue_router)
+    app.include_router(apps_router)
+    app.include_router(inbox_router)
+    app.include_router(profile_router)
+
+    @app.exception_handler(Exception)
+    async def debug_exception_handler(request: Request, exc: Exception) -> HTMLResponse:
+        tb = traceback.format_exc()
+        log.error("unhandled_exception", path=str(request.url), error=str(exc), traceback=tb)
+        return HTMLResponse(f"<pre>{tb}</pre>", status_code=500)
 
     log.info("app.startup", env=settings.app_env, port=settings.port)
     return app

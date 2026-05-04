@@ -31,10 +31,23 @@ async def callback(request: Request, code: str, state: str) -> RedirectResponse:
     oauth = request.app.state.container.oauth
     settings = request.app.state.settings
 
+    log.info("oauth.callback.start", state_in_url=state, session_keys=list(request.session.keys()))
+    saved_state = request.session.pop("oauth_state", None)
+    log.info("oauth.callback.state_check", saved=saved_state, received=state, match=(saved_state == state))
+    if not saved_state or saved_state != state:
+        log.warning("oauth.state_mismatch", saved=saved_state, received=state)
+        return RedirectResponse("/auth/login")
+
+    log.info("oauth.callback.exchanging_code")
     try:
-        user = await oauth.exchange_code(code, state)
-    except UserNotAllowed:
+        user = await oauth.exchange_code(code)
+        log.info("oauth.callback.exchange_ok", user_id=str(user.id), email=user.email)
+    except UserNotAllowed as exc:
+        log.warning("oauth.callback.not_allowed", error=str(exc))
         return RedirectResponse("/auth/denied")
+    except Exception as exc:
+        log.error("oauth.callback_error", error=str(exc), error_type=type(exc).__name__, exc_info=True)
+        return RedirectResponse("/auth/login")
 
     token = create_session_cookie(user.id, settings)
     response = RedirectResponse("/")

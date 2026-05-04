@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 
 import structlog
 from pypdf import PdfReader
+from docx import Document
 
 from job_agent.domain.models.profile import Profile
 from job_agent.infrastructure.llm.anthropic_client import AnthropicClient
@@ -53,10 +55,14 @@ JSON schema (all fields optional, use empty lists/strings for missing data):
 
 
 def extract_text_from_pdf(path: Path) -> str:
-    """Extract raw text from a PDF resume."""
     reader = PdfReader(str(path))
     pages = [page.extract_text() or "" for page in reader.pages]
     return "\n".join(pages).strip()
+
+
+def extract_text_from_docx(path: Path) -> str:
+    doc = Document(str(path))
+    return "\n".join(p.text for p in doc.paragraphs if p.text.strip()).strip()
 
 
 async def parse_resume(
@@ -64,19 +70,17 @@ async def parse_resume(
     user_id: uuid.UUID,
     llm: AnthropicClient,
 ) -> Profile:
-    """Parse a PDF resume into a structured Profile domain object.
-
-    Uses pypdf for text extraction, then Claude for structured data extraction.
-    The raw resume text is always stored verbatim so nothing is lost.
-    """
+    """Parse a PDF or DOCX resume into a structured Profile domain object."""
     if not file_path.exists():
         raise FileNotFoundError(f"Resume not found: {file_path}")
 
     suffix = file_path.suffix.lower()
     if suffix == ".pdf":
         resume_text = extract_text_from_pdf(file_path)
+    elif suffix in (".docx", ".doc"):
+        resume_text = extract_text_from_docx(file_path)
     else:
-        raise ValueError(f"Unsupported format: {suffix}. Only PDF is supported in Phase 1.")
+        raise ValueError(f"Unsupported format: {suffix}. Supported: .pdf, .docx")
 
     log.info("parser.extract", user_id=str(user_id), chars=len(resume_text))
 
@@ -101,14 +105,29 @@ async def _llm_extract(text: str, user_id: uuid.UUID, llm: AnthropicClient) -> d
         system=_EXTRACTION_SYSTEM,
         prompt=f"<resume>\n{text[:12000]}\n</resume>",
         model="claude-haiku-4-5-20251001",
-        max_tokens=2048,
+        max_tokens=4096,
         temperature=0.1,
     )
 
-    try:
-        data: dict[str, Any] = json.loads(response)
-    except json.JSONDecodeError as exc:
-        log.error("parser.json_error", error=str(exc), raw=response[:200])
-        data = {}
+    cleaned = response.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[-1]
+        cleaned = cleaned.rsplit("```", 1)[0].strip()
 
-    return data
+    try:
+        data: dict[str, Any] = json.loads(cleaned)
+        return data
+    except json.JSONDecodeError:
+        pass
+
+    # Try to extract just the outermost JSON object if full parse fails
+    m = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    if m:
+        try:
+            data = json.loads(m.group())
+            return data
+        except json.JSONDecodeError as exc:
+            log.error("parser.json_error", error=str(exc), raw=response[:200])
+
+    log.error("parser.json_error", error="no valid JSON found", raw=response[:200])
+    return {}

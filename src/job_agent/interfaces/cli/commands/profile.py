@@ -24,7 +24,7 @@ console = Console()
 
 
 def _run(coro):  # type: ignore[no-untyped-def]
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 @app.command("load")
@@ -75,7 +75,7 @@ def load(
                 border_style="green",
             )
         )
-        console.print(f"\n[green]✓[/green] Profile saved (id={profile.id})")
+        console.print(f"\n[green]Profile saved (id={profile.id})[/green]")
 
     _run(_run_async())
 

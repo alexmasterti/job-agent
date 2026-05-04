@@ -15,15 +15,15 @@
 <div class="stats-grid">
     <div class="stat-card accent">
         <div class="stat-label">Jobs Discovered</div>
-        <div class="stat-value">0</div>
+        <div class="stat-value">{{ jobs_count }}</div>
     </div>
     <div class="stat-card green">
         <div class="stat-label">Applications Sent</div>
-        <div class="stat-value">0</div>
+        <div class="stat-value">{{ (app_counts.get('applied_manual', 0) + app_counts.get('auto_applied', 0)) }}</div>
     </div>
     <div class="stat-card blue">
         <div class="stat-label">Pending Approval</div>
-        <div class="stat-value">0</div>
+        <div class="stat-value">{{ app_counts.get('queued', 0) }}</div>
     </div>
     <div class="stat-card yellow">
         <div class="stat-label">Recruiter Replies</div>

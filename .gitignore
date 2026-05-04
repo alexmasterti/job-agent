@@ -1,9 +1,12 @@
 .env
 output/
 debug/
+data/
 __pycache__/
 .venv/
 *.pdf
+*.docx
+uvicorn.log
 *.pyc
 .mypy_cache/
 .ruff_cache/

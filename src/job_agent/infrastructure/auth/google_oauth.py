@@ -46,30 +46,33 @@ class GoogleOAuthAdapter:
         )
         return str(url), str(state)
 
-    async def exchange_code(self, code: str, state: str) -> User:
+    async def exchange_code(self, code: str) -> User:
         """Exchange the OAuth callback code for a user identity.
 
         Raises UserNotAllowed if the email is not in ALLOWED_GOOGLE_EMAILS.
         Creates or updates the user row on success.
         """
+        log.info("oauth.fetch_token.start")
         async with self.build_client() as client:
-            token = await client.fetch_token(
-                _GOOGLE_TOKEN_URL,
-                code=code,
-                state=state,
-            )
-            resp = await client.get(_GOOGLE_USERINFO_URL, token=token)
+            await client.fetch_token(_GOOGLE_TOKEN_URL, code=code)
+            log.info("oauth.fetch_token.done")
+            resp = await client.get(_GOOGLE_USERINFO_URL)
+            log.info("oauth.userinfo.done", status=resp.status_code)
             resp.raise_for_status()
             info: dict[str, Any] = resp.json()
+            log.info("oauth.userinfo.parsed", keys=list(info.keys()))
 
         email: str = info.get("email", "").lower()
         google_sub: str = info.get("sub", "")
+        log.info("oauth.identity", email=email, has_sub=bool(google_sub))
 
         if email not in self._settings.allowed_emails:
-            log.warning("oauth.not_allowed", email=email)
+            log.warning("oauth.not_allowed", email=email, allowed=self._settings.allowed_emails)
             raise UserNotAllowed(f"Email not in allowlist: {email}")
 
+        log.info("oauth.db.lookup_start")
         existing = await self._user_repo.get_by_google_sub(google_sub)
+        log.info("oauth.db.lookup_done", found=existing is not None)
         user = User(
             id=existing.id if existing else uuid.uuid4(),
             email=email,
@@ -78,6 +81,7 @@ class GoogleOAuthAdapter:
             is_active=True,
             created_at=existing.created_at if existing else datetime.now(timezone.utc),
         )
+        log.info("oauth.db.upsert_start")
         saved = await self._user_repo.upsert(user)
         log.info("oauth.login", user_id=str(saved.id), email=email)
         return saved

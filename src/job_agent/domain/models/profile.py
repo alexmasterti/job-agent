@@ -66,7 +66,12 @@ class Profile(BaseModel):
     certifications: list[str] = Field(default_factory=list)
     languages: list[dict[str, str]] = Field(default_factory=list)
 
-    # Matching preferences
+    # Location / remote preferences (user-editable)
+    preferred_locations: list[str] = Field(default_factory=list)
+    # "remote_only" | "hybrid_ok" | "any"
+    remote_preference: str = "any"
+
+    # Matching preferences (advanced)
     location_preferences: list[LocationPreference] = Field(default_factory=list)
     schedule_constraints: list[ScheduleConstraint] = Field(default_factory=list)
     stack_alignment: StackAlignment = Field(default_factory=StackAlignment)

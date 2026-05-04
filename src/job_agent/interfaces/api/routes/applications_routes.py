@@ -6,8 +6,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from job_agent.interfaces.api.middleware.auth import decode_session, _COOKIE_NAME
 from job_agent.config import Settings
+from job_agent.interfaces.api.middleware.auth import _COOKIE_NAME, decode_session
 
 router = APIRouter()
 
@@ -28,8 +28,8 @@ def _get_user_id(request: Request) -> uuid.UUID | None:
         return None
 
 
-@router.get("/", response_model=None)
-async def dashboard(request: Request) -> HTMLResponse | RedirectResponse:
+@router.get("/applications-old", response_model=None)
+async def applications_page(request: Request) -> HTMLResponse | RedirectResponse:
     user_id = _get_user_id(request)
     if not user_id:
         return RedirectResponse("/auth/login")
@@ -39,22 +39,18 @@ async def dashboard(request: Request) -> HTMLResponse | RedirectResponse:
     if not user:
         return RedirectResponse("/auth/login")
 
-    profile = await container.profile_repo.get_by_user(user_id)
-    today_spend = await container.llm_call_repo.today_spend(user_id)
-    jobs_count = await container.job_repo.count_by_user(user_id)
-    matches_count = await container.match_repo.count_by_user(user_id)
-    app_counts = await container.application_repo.counts(user_id)
+    applied = await container.application_repo.list_applied(user_id)
+
+    match_scores: dict[uuid.UUID, float] = {}
+    for match, *_ in await container.match_repo.list_top(user_id, limit=500):
+        match_scores[match.job_id] = match.final_score
 
     return _templates(request).TemplateResponse(
         request,
-        "dashboard.html",
+        "applications.html",
         {
             "user": user,
-            "profile": profile,
-            "today_spend": round(today_spend, 4),
-            "daily_budget": container.settings.llm_daily_budget_usd,
-            "jobs_count": jobs_count,
-            "matches_count": matches_count,
-            "app_counts": app_counts,
+            "applied": applied,
+            "match_scores": match_scores,
         },
     )

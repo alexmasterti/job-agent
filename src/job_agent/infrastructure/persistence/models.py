@@ -13,6 +13,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -63,6 +64,21 @@ class ProfileRow(Base):
     )
 
     user: Mapped[UserRow] = relationship(back_populates="profiles")
+
+
+class UserResumeRow(Base):
+    __tablename__ = "user_resumes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_ext: Mapped[str] = mapped_column(String(16), nullable=False, default=".docx")
+    file_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    resume_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now)
 
 
 class JobRow(Base):
