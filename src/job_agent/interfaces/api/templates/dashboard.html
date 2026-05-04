@@ -35,6 +35,36 @@
     </div>
 </div>
 
+<!-- Discover & Match Pipeline -->
+{% if profile %}
+<div class="card" style="margin-bottom:var(--space-5)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3)">
+        <h3 style="font-size:16px;font-weight:600;margin:0">Discover &amp; Match Jobs</h3>
+    </div>
+    <form hx-post="/api/pipeline/run" hx-target="#pipeline-progress" hx-swap="outerHTML" style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:180px">
+            <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">Search keyword</label>
+            <input type="text" name="keyword" value="software engineer" placeholder="e.g. senior backend engineer"
+                style="width:100%;padding:var(--space-2) var(--space-3);font-size:13px;font-family:inherit;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);box-sizing:border-box">
+        </div>
+        <div style="min-width:120px">
+            <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">Source</label>
+            <select name="source"
+                style="width:100%;padding:var(--space-2) var(--space-3);font-size:13px;font-family:inherit;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)">
+                <option value="all">All sources</option>
+                <option value="greenhouse">Greenhouse</option>
+                <option value="lever">Lever</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Run Pipeline</button>
+    </form>
+    <div id="pipeline-progress"></div>
+    <p style="font-size:12px;color:var(--text-dim);margin-top:var(--space-3);margin-bottom:0">
+        Fetches jobs from ATS boards, then scores them against your profile using embeddings + LLM. First run downloads the embedding model (~1.3 GB).
+    </p>
+</div>
+{% endif %}
+
 <!-- LLM Budget -->
 <div class="budget-section">
     <div class="budget-header">

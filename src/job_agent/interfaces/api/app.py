@@ -23,6 +23,7 @@ from job_agent.interfaces.api.routes.dashboard import router as dashboard_router
 from job_agent.interfaces.api.routes.health import router as health_router
 from job_agent.interfaces.api.routes.inbox_routes import router as inbox_router
 from job_agent.interfaces.api.routes.jobs_routes import router as jobs_router
+from job_agent.interfaces.api.routes.pipeline_routes import router as pipeline_router
 from job_agent.interfaces.api.routes.profile_routes import router as profile_router
 from job_agent.interfaces.api.routes.queue_routes import router as queue_router
 from job_agent.logging_config import configure_logging
@@ -70,6 +71,7 @@ def create_app() -> FastAPI:
     app.include_router(queue_router)
     app.include_router(apps_router)
     app.include_router(inbox_router)
+    app.include_router(pipeline_router)
     app.include_router(profile_router)
 
     @app.exception_handler(Exception)
