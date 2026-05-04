@@ -141,7 +141,7 @@
 <!-- Location Preferences -->
 <div class="card" style="margin-bottom:var(--space-4)">
     <h3 style="font-size:16px;font-weight:600;margin-bottom:var(--space-4)">Location Preferences</h3>
-    <form action="/profile/preferences" method="post">
+    <form action="/profile/preferences" method="post" id="prefs-form">
         <div style="display:flex;flex-direction:column;gap:var(--space-4)">
             <div>
                 <label style="font-size:13px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:var(--space-2)">Remote preference</label>
@@ -157,23 +157,32 @@
             <div>
                 <label style="font-size:13px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:var(--space-2)">
                     Preferred locations
-                    <span style="font-weight:400;color:var(--text-dim)">(one per line — e.g. Boston, Massachusetts, New York)</span>
+                    <span style="font-weight:400;color:var(--text-dim)">(city/area + search radius in miles)</span>
                 </label>
-                {% if preferred_locations %}
-                <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);margin-bottom:var(--space-3)">
+
+                <div id="location-rows" style="display:flex;flex-direction:column;gap:var(--space-2);margin-bottom:var(--space-3)">
                     {% for loc in preferred_locations %}
-                    <span style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:var(--accent-soft);color:var(--accent-light);border:1px solid rgba(124,58,237,0.2)">{{ loc }}</span>
+                    <div class="loc-row" style="display:flex;align-items:center;gap:var(--space-2)">
+                        <input type="text" name="loc_name_{{ loop.index0 }}" value="{{ loc.name }}"
+                            placeholder="e.g. Boston, MA"
+                            style="flex:1;min-width:180px;padding:var(--space-2) var(--space-3);font-size:13px;font-family:inherit;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)">
+                        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                            <input type="number" name="loc_radius_{{ loop.index0 }}" value="{{ loc.radius_miles | int }}"
+                                min="5" max="500" step="5"
+                                style="width:70px;padding:var(--space-2) var(--space-2);font-size:13px;font-family:inherit;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);text-align:center">
+                            <span style="font-size:12px;color:var(--text-dim);white-space:nowrap">mi</span>
+                        </div>
+                        <button type="button" onclick="this.closest('.loc-row').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;padding:4px" title="Remove">&times;</button>
+                    </div>
                     {% endfor %}
                 </div>
-                {% endif %}
-                <textarea
-                    name="preferred_locations"
-                    rows="4"
-                    placeholder="Boston&#10;Massachusetts&#10;Cambridge"
-                    style="width:100%;padding:var(--space-2) var(--space-3);font-size:13px;font-family:inherit;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);resize:vertical;box-sizing:border-box"
-                >{{ preferred_locations | join('\n') }}</textarea>
+
+                <button type="button" onclick="addLocationRow()" class="btn btn-secondary btn-sm" style="align-self:flex-start;margin-bottom:var(--space-2)">+ Add location</button>
+
                 <p style="font-size:12px;color:var(--text-dim);margin-top:var(--space-2)">
-                    Jobs not matching any entry are hidden from Matched. Leave empty to show all. Remote jobs always pass when "Hybrid OK" or "Remote only" is selected.
+                    Jobs within the radius of any location are shown. Uses geocoding with fallback to name matching.
+                    Remote jobs always pass when "Hybrid OK" or "Remote only" is selected.
+                    Leave empty to show all jobs.
                 </p>
             </div>
             <div>
@@ -182,4 +191,37 @@
         </div>
     </form>
 </div>
+
+<script>
+function addLocationRow() {
+    const container = document.getElementById('location-rows');
+    const idx = container.querySelectorAll('.loc-row').length;
+    const row = document.createElement('div');
+    row.className = 'loc-row';
+    row.style.cssText = 'display:flex;align-items:center;gap:var(--space-2)';
+    row.innerHTML = `
+        <input type="text" name="loc_name_${idx}" placeholder="e.g. New York, NY"
+            style="flex:1;min-width:180px;padding:var(--space-2) var(--space-3);font-size:13px;font-family:inherit;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary)">
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+            <input type="number" name="loc_radius_${idx}" value="50"
+                min="5" max="500" step="5"
+                style="width:70px;padding:var(--space-2) var(--space-2);font-size:13px;font-family:inherit;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);text-align:center">
+            <span style="font-size:12px;color:var(--text-dim);white-space:nowrap">mi</span>
+        </div>
+        <button type="button" onclick="this.closest('.loc-row').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;padding:4px" title="Remove">&times;</button>
+    `;
+    container.appendChild(row);
+}
+
+// Re-index names before submit so there are no gaps
+document.getElementById('prefs-form').addEventListener('submit', function() {
+    const rows = document.querySelectorAll('#location-rows .loc-row');
+    rows.forEach((row, i) => {
+        const nameInput = row.querySelector('input[type="text"]');
+        const radiusInput = row.querySelector('input[type="number"]');
+        if (nameInput) nameInput.name = 'loc_name_' + i;
+        if (radiusInput) radiusInput.name = 'loc_radius_' + i;
+    });
+});
+</script>
 {% endblock %}

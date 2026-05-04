@@ -4,7 +4,14 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+class PreferredLocation(BaseModel):
+    """A preferred location with a search radius in miles."""
+
+    name: str
+    radius_miles: float = 50.0
 
 
 class LocationPreference(BaseModel):
@@ -67,9 +74,25 @@ class Profile(BaseModel):
     languages: list[dict[str, str]] = Field(default_factory=list)
 
     # Location / remote preferences (user-editable)
-    preferred_locations: list[str] = Field(default_factory=list)
+    preferred_locations: list[PreferredLocation] = Field(default_factory=list)
     # "remote_only" | "hybrid_ok" | "any"
     remote_preference: str = "any"
+
+    @field_validator("preferred_locations", mode="before")
+    @classmethod
+    def _normalize_locations(cls, v: Any) -> list[dict[str, Any]]:
+        """Accept both old list[str] and new list[dict] formats from DB."""
+        if not isinstance(v, list):
+            return []
+        result: list[dict[str, Any]] = []
+        for item in v:
+            if isinstance(item, str):
+                result.append({"name": item, "radius_miles": 50.0})
+            elif isinstance(item, dict):
+                result.append(item)
+            else:
+                result.append({"name": str(item), "radius_miles": 50.0})
+        return result
 
     # Matching preferences (advanced)
     location_preferences: list[LocationPreference] = Field(default_factory=list)

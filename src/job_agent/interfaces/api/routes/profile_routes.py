@@ -64,6 +64,9 @@ async def profile_page(request: Request) -> HTMLResponse | RedirectResponse:
     preferred_locations = profile.preferred_locations if profile else []
     remote_preference = profile.remote_preference if profile else "any"
 
+    # Convert PreferredLocation objects to dicts for template
+    loc_dicts = [{"name": pl.name, "radius_miles": pl.radius_miles} for pl in preferred_locations]
+
     return _templates(request).TemplateResponse(
         request,
         "profile.html",
@@ -71,7 +74,7 @@ async def profile_page(request: Request) -> HTMLResponse | RedirectResponse:
             "user": user,
             "profile": profile,
             "resumes": resumes,
-            "preferred_locations": preferred_locations,
+            "preferred_locations": loc_dicts,
             "remote_preference": remote_preference,
         },
     )
@@ -84,10 +87,25 @@ async def save_preferences(request: Request) -> RedirectResponse:
         return RedirectResponse("/auth/login", status_code=303)
 
     form = await request.form()
-    raw_locs = str(form.get("preferred_locations", ""))
     remote_pref = str(form.get("remote_preference", "any"))
 
-    locations = [ln.strip() for ln in raw_locs.replace(",", "\n").splitlines() if ln.strip()]
+    # Parse location entries: loc_name_0/loc_radius_0, loc_name_1/loc_radius_1, ...
+    locations: list[dict[str, object]] = []
+    idx = 0
+    while True:
+        name = str(form.get(f"loc_name_{idx}", "")).strip()
+        if not name and idx > 0:
+            break
+        if name:
+            try:
+                radius = float(str(form.get(f"loc_radius_{idx}", "50")))
+            except ValueError:
+                radius = 50.0
+            radius = max(5.0, min(500.0, radius))
+            locations.append({"name": name, "radius_miles": radius})
+        idx += 1
+        if idx > 50:
+            break
 
     container = request.app.state.container
     await container.profile_repo.save_preferences(user_id, locations, remote_pref)

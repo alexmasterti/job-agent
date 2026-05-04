@@ -23,7 +23,10 @@ class ProfileRepository:
         return _to_domain(row) if row else None
 
     async def save_preferences(
-        self, user_id: uuid.UUID, preferred_locations: list[str], remote_preference: str
+        self,
+        user_id: uuid.UUID,
+        preferred_locations: list[dict[str, object]],
+        remote_preference: str,
     ) -> None:
         async with self._sf() as s, s.begin():
             row = await s.scalar(select(ProfileRow).where(ProfileRow.user_id == user_id))

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from job_agent.infrastructure.geo.geocoder import is_within_radius
 from job_agent.infrastructure.resume.builder import build_resume_docx
 from job_agent.interfaces.api.middleware.auth import _COOKIE_NAME, decode_session
 
@@ -42,7 +43,8 @@ def _location_ok(job_location: str, job_remote: bool, profile: Profile | None) -
         return True  # No on-site preferences set → pass everything
 
     return any(
-        pl.lower() in loc_lower or loc_lower in pl.lower() for pl in profile.preferred_locations
+        is_within_radius(job_location, pl.name, pl.radius_miles)
+        for pl in profile.preferred_locations
     )
 
 
