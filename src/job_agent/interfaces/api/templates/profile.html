@@ -88,10 +88,10 @@
             <div style="display:flex;gap:var(--space-2);flex-shrink:0">
                 <a href="/profile/resumes/{{ r.id }}/download" class="btn btn-secondary btn-sm" hx-boost="false">Download</a>
                 {% if not r.is_primary %}
-                <form method="post" action="/profile/resumes/{{ r.id }}/set-primary" style="display:inline">
+                <form method="post" action="/profile/resumes/{{ r.id }}/set-primary" style="display:inline" hx-boost="false">
                     <button type="submit" class="btn btn-secondary btn-sm">Set Primary</button>
                 </form>
-                <form method="post" action="/profile/resumes/{{ r.id }}/delete" style="display:inline"
+                <form method="post" action="/profile/resumes/{{ r.id }}/delete" style="display:inline" hx-boost="false"
                       onsubmit="return confirm('Delete this resume?')">
                     <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--red)">Delete</button>
                 </form>
@@ -107,7 +107,7 @@
     {% endif %}
 
     <!-- Upload new resume -->
-    <form action="/profile/resumes/upload" method="post" enctype="multipart/form-data">
+    <form action="/profile/resumes/upload" method="post" enctype="multipart/form-data" hx-boost="false">
         <div style="display:flex;flex-direction:column;gap:var(--space-3)">
             <div style="display:flex;gap:var(--space-3);flex-wrap:wrap">
                 <input
@@ -141,7 +141,7 @@
 <!-- Location Preferences -->
 <div class="card" style="margin-bottom:var(--space-4)">
     <h3 style="font-size:16px;font-weight:600;margin-bottom:var(--space-4)">Location Preferences</h3>
-    <form action="/profile/preferences" method="post" id="prefs-form">
+    <form action="/profile/preferences" method="post" id="prefs-form" hx-boost="false">
         <div style="display:flex;flex-direction:column;gap:var(--space-4)">
             <div>
                 <label style="font-size:13px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:var(--space-2)">Remote preference</label>
