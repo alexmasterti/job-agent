@@ -2,6 +2,21 @@
    Components — translated from BookLibrary's Razor components
    ============================================================ */
 
+/* ---- Spinner ---- */
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(124, 58, 237, 0.2);
+    border-top-color: var(--accent-light, #7c3aed);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* ---- Reset ---- */
 *, *::before, *::after { box-sizing: border-box; }
 

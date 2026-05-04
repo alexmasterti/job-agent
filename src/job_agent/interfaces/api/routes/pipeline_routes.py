@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -16,6 +17,8 @@ from job_agent.interfaces.api.middleware.auth import _COOKIE_NAME, decode_sessio
 if TYPE_CHECKING:
     from job_agent.composition_root import Container
     from job_agent.config import Settings
+
+log = structlog.get_logger()
 
 router = APIRouter()
 
@@ -117,22 +120,42 @@ async def _run_pipeline(
     container: Container,
     state: PipelineState,
 ) -> None:
-    """Background task: discover jobs, then score them."""
-    try:
-        # Phase 1: Discover
-        state.stage = _STAGE_DISCOVERING
-        results = await container.discover_jobs.execute(
-            user_id=user_id,
-            source_name=state.source,
-            query=state.keyword,
-            remote=False,
-        )
-        for r in results:
-            state.discovered += r.fetched
-            state.new_jobs += r.new
-            state.skipped_jobs += r.skipped
+    """Background task: discover jobs source by source, then score them.
 
-        # Phase 2: Match
+    Updates state.discovered / state.new_jobs live so the HTMX poller
+    can show incremental progress to the user.
+    """
+    try:
+        # ── Phase 1: Discover (per-source, live counter) ─────────────
+        state.stage = _STAGE_DISCOVERING
+
+        source_name = state.source
+        sources_map = {
+            "greenhouse": container.discover_jobs._sources.get("greenhouse"),
+            "lever": container.discover_jobs._sources.get("lever"),
+        }
+        if source_name == "all":
+            targets = [s for s in sources_map.values() if s is not None]
+        else:
+            s = sources_map.get(source_name)
+            targets = [s] if s else []
+
+        for source in targets:
+            log.info("pipeline.discover.source", source=source.source_name)
+            try:
+                jobs = await source.discover(user_id, state.keyword)
+                new, skipped = await container.job_repo.upsert_many(jobs)
+                state.discovered += len(jobs)
+                state.new_jobs += new
+                state.skipped_jobs += skipped
+            except Exception as exc:
+                log.warning(
+                    "pipeline.discover.source_error",
+                    source=getattr(source, "source_name", "?"),
+                    error=str(exc),
+                )
+
+        # ── Phase 2: Match ───────────────────────────────────────────
         state.stage = _STAGE_MATCHING
         match_result = await container.match_jobs.execute(
             user_id=user_id,
@@ -157,46 +180,112 @@ async def _run_pipeline(
 def _render_progress(state: PipelineState) -> str:
     """Return an HTML fragment for the pipeline progress card."""
     if state.stage == _STAGE_IDLE:
-        return ""
+        return '<div id="pipeline-progress"></div>'
 
-    poll_attr = ""
-    if state.stage in (_STAGE_DISCOVERING, _STAGE_MATCHING):
-        poll_attr = ' hx-get="/api/pipeline/status" hx-trigger="every 2s" hx-swap="outerHTML"'
+    is_active = state.stage in (_STAGE_DISCOVERING, _STAGE_MATCHING)
+    poll_attr = (
+        ' hx-get="/api/pipeline/status" hx-trigger="every 1s" hx-swap="outerHTML"'
+        if is_active
+        else ""
+    )
 
-    # Stage indicator
+    # Stage-specific content
     if state.stage == _STAGE_DISCOVERING:
-        icon = '<span class="spinner"></span>'
-        label = f"Discovering jobs for &ldquo;{state.keyword}&rdquo;..."
-        detail = f"Found {state.discovered} jobs ({state.new_jobs} new)"
+        stage_num = "1/2"
+        label = f"Discovering &ldquo;{state.keyword}&rdquo; from job boards..."
+        counters = (
+            f'<div style="display:flex;gap:var(--space-5);margin-top:var(--space-3)">'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--accent-light)">{state.discovered}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">fetched</div></div>'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--green,#22c55e)">{state.new_jobs}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">new</div></div>'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--text-dim)">{state.skipped_jobs}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">duplicates</div></div>'
+            f"</div>"
+        )
     elif state.stage == _STAGE_MATCHING:
-        icon = '<span class="spinner"></span>'
-        label = "Scoring jobs against your profile..."
-        detail = (
-            f"Discovered {state.new_jobs} new jobs &middot; "
-            f"Scored {state.scored} &middot; Saved {state.saved}"
+        stage_num = "2/2"
+        label = "Scoring jobs against your profile (embeddings + LLM)..."
+        counters = (
+            f'<div style="display:flex;gap:var(--space-5);margin-top:var(--space-3)">'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--accent-light)">{state.new_jobs}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">discovered</div></div>'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--green,#22c55e)">{state.scored}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">scored</div></div>'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--text-muted)">{state.saved}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">saved</div></div>'
+            f"</div>"
         )
     elif state.stage == _STAGE_DONE:
-        icon = '<span style="color:var(--green);font-size:18px">&#10003;</span>'
+        stage_num = ""
         label = "Pipeline complete!"
-        detail = (
-            f"Discovered {state.new_jobs} new jobs &middot; "
-            f"Scored {state.scored} &middot; Saved {state.saved} matches &middot; "
-            f"Filtered {state.filtered} &middot; Low-embedding {state.skipped_low_embedding}"
+        counters = (
+            f'<div style="display:flex;gap:var(--space-5);margin-top:var(--space-3)">'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--accent-light)">{state.discovered}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">fetched</div></div>'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--green,#22c55e)">{state.new_jobs}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">new jobs</div></div>'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--accent-light)">{state.scored}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">scored</div></div>'
+            f'<div><span style="font-size:20px;font-weight:700;color:var(--green,#22c55e)">{state.saved}</span>'
+            f'<div style="font-size:11px;color:var(--text-dim)">matches</div></div>'
+            f"</div>"
         )
     elif state.stage == _STAGE_ERROR:
-        icon = '<span style="color:var(--red);font-size:18px">&#10007;</span>'
+        stage_num = ""
         label = "Pipeline failed"
-        detail = state.error[:200]
+        counters = f'<div style="font-size:13px;color:var(--red,#ef4444);margin-top:var(--space-2)">{state.error[:200]}</div>'
     else:
-        icon = ""
-        label = ""
-        detail = ""
+        return '<div id="pipeline-progress"></div>'
 
-    view_link = ""
+    # Icon
+    if is_active:
+        icon = '<span class="spinner" style="width:20px;height:20px"></span>'
+    elif state.stage == _STAGE_DONE:
+        icon = '<span style="font-size:20px">&#9989;</span>'
+    else:
+        icon = '<span style="font-size:20px">&#10060;</span>'
+
+    # Progress bar (indeterminate for active, full for done)
+    if is_active:
+        bar = (
+            '<div style="margin-top:var(--space-3);height:4px;border-radius:2px;'
+            'background:rgba(124,58,237,0.15);overflow:hidden">'
+            '<div style="height:100%;width:30%;border-radius:2px;'
+            'background:var(--accent-light,#7c3aed);animation:progress-slide 1.5s ease-in-out infinite"></div>'
+            "</div>"
+        )
+    elif state.stage == _STAGE_DONE:
+        bar = (
+            '<div style="margin-top:var(--space-3);height:4px;border-radius:2px;'
+            'background:rgba(34,197,94,0.15)">'
+            '<div style="height:100%;width:100%;border-radius:2px;'
+            'background:var(--green,#22c55e);transition:width 0.5s"></div>'
+            "</div>"
+        )
+    else:
+        bar = ""
+
+    # Stage badge
+    badge = ""
+    if stage_num:
+        badge = (
+            f'<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;'
+            f'background:var(--accent-soft,rgba(124,58,237,0.1));color:var(--accent-light,#7c3aed)">'
+            f"Step {stage_num}</span>"
+        )
+
+    # Action link
+    action = ""
     if state.stage == _STAGE_DONE and state.saved > 0:
-        view_link = (
-            ' <a href="/jobs?tab=matched" class="btn btn-primary btn-sm" '
-            'style="margin-top:var(--space-3)">View Matches</a>'
+        action = (
+            '<a href="/jobs?tab=matched" class="btn btn-primary btn-sm" '
+            'style="margin-top:var(--space-3)">View Matches &rarr;</a>'
+        )
+    elif state.stage == _STAGE_DONE and state.saved == 0 and state.new_jobs == 0:
+        action = (
+            '<div style="font-size:12px;color:var(--text-dim);margin-top:var(--space-2)">'
+            "No new jobs found. Try a different keyword or check back later.</div>"
         )
 
     return (
@@ -206,10 +295,17 @@ def _render_progress(state: PipelineState) -> str:
         f'<div style="display:flex;align-items:center;gap:var(--space-3)">'
         f"{icon}"
         f'<div style="flex:1">'
-        f'<div style="font-size:14px;font-weight:600">{label}</div>'
-        f'<div style="font-size:12px;color:var(--text-muted);margin-top:2px">{detail}</div>'
+        f'<div style="display:flex;align-items:center;gap:var(--space-2)">'
+        f'<span style="font-size:14px;font-weight:600">{label}</span>'
+        f"{badge}</div>"
+        f"</div></div>"
+        f"{bar}"
+        f"{counters}"
+        f"{action}"
         f"</div>"
-        f"</div>"
-        f"{view_link}"
-        f"</div>"
+        f"<style>"
+        f"@keyframes progress-slide {{"
+        f"0% {{ transform: translateX(-100%); }}"
+        f"100% {{ transform: translateX(400%); }}"
+        f"}}</style>"
     )
