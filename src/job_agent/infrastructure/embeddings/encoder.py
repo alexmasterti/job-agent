@@ -6,6 +6,8 @@ Subsequent runs reuse the cached model from ~/.cache/huggingface/.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import structlog
 
@@ -21,9 +23,9 @@ class EmbeddingEncoder:
         self._model_name = model_name
         self._model = None
 
-    def _model_instance(self):  # type: ignore[return]
+    def _model_instance(self) -> Any:
         if self._model is None:
-            from sentence_transformers import SentenceTransformer  # type: ignore[import-untyped]
+            from sentence_transformers import SentenceTransformer
 
             log.info("embeddings.loading_model", model=self._model_name)
             self._model = SentenceTransformer(self._model_name)
@@ -32,7 +34,7 @@ class EmbeddingEncoder:
 
     def encode(self, text: str) -> list[float]:
         vec = self._model_instance().encode(text, normalize_embeddings=True)
-        return vec.tolist()
+        return list(vec.tolist())
 
     def encode_batch(self, texts: list[str], batch_size: int = 32) -> list[list[float]]:
         model = self._model_instance()

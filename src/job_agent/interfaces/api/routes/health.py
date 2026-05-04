@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import APIRouter, Request
 from sqlalchemy import text
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import async_sessionmaker
 
 router = APIRouter()
 
@@ -23,7 +18,7 @@ async def readiness(request: Request) -> dict[str, str]:
 
     Railway health checks point at this endpoint.
     """
-    session_factory: async_sessionmaker = request.app.state.container.user_repo._sf
+    session_factory = request.app.state.container.user_repo._sf
     async with session_factory() as s:
         await s.execute(text("SELECT 1"))
     return {"status": "ready"}

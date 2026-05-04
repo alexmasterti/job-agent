@@ -59,7 +59,7 @@ def run(
         table.add_column("Location", min_width=16)
         table.add_column("Reasoning")
 
-        for i, (match, title, company, location, _url) in enumerate(rows, 1):
+        for i, (match, title, company, location, _url, _remote) in enumerate(rows, 1):
             score_style = (
                 "green"
                 if match.final_score >= 70
@@ -97,8 +97,8 @@ def top_cmd(
             console.print(f"[red]No user found for {user_email}[/red]")
             raise typer.Exit(1)
 
-        rows = await container.match_repo.list_top(user.id, limit=limit)
-        rows = [(m, t, c, loc, u) for m, t, c, loc, u in rows if m.final_score >= min_score]
+        all_rows = await container.match_repo.list_top(user.id, limit=limit)
+        rows = [r for r in all_rows if r[0].final_score >= min_score]
 
         if not rows:
             console.print("[yellow]No matches found. Run: job-agent match run[/yellow]")
@@ -114,7 +114,7 @@ def top_cmd(
         table.add_column("Location", min_width=14)
         table.add_column("Reasoning")
 
-        for i, (match, title, company, location, _url) in enumerate(rows, 1):
+        for i, (match, title, company, location, _url, _remote) in enumerate(rows, 1):
             score_style = (
                 "green"
                 if match.final_score >= 70

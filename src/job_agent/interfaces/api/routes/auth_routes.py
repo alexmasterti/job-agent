@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get("/auth/login", response_class=HTMLResponse)
 async def login_page(request: Request) -> HTMLResponse:
     templates = request.app.state.templates
-    return templates.TemplateResponse(request, "login.html")
+    return templates.TemplateResponse(request, "login.html")  # type: ignore[no-any-return]
 
 
 @router.get("/auth/go")

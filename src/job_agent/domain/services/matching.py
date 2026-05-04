@@ -54,8 +54,8 @@ class MatchingService:
     """Scores a (profile, job) pair and returns a Match or None if filtered/below threshold."""
 
     def __init__(self, encoder: object, llm: object) -> None:
-        self._encoder = encoder  # type: ignore[assignment]
-        self._llm = llm  # type: ignore[assignment]
+        self._encoder = encoder
+        self._llm = llm
 
     def passes_hard_filters(self, profile: Profile, job: Job) -> tuple[bool, list[str]]:
         """Check exclusion rules. Returns (passes, list_of_triggered_flags)."""

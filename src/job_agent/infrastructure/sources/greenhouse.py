@@ -66,7 +66,7 @@ class GreenhouseSource:
 
         jobs: list[Job] = []
         for slug, result in zip(self._slugs, results, strict=False):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 log.debug("greenhouse.skip", slug=slug, error=str(result))
             else:
                 jobs.extend(result)

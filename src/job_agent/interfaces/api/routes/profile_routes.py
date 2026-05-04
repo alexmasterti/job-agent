@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 def _templates(request: Request) -> Jinja2Templates:
-    return request.app.state.templates
+    return request.app.state.templates  # type: ignore[no-any-return]
 
 
 def _get_user_id(request: Request) -> uuid.UUID | None:

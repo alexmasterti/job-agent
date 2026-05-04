@@ -64,7 +64,7 @@ class MatchRepository:
         stmt = insert(MatchRow).values(values).on_conflict_do_nothing()
         async with self._sf() as s, s.begin():
             result = await s.execute(stmt)
-        return result.rowcount
+        return result.rowcount  # type: ignore[no-any-return, attr-defined]
 
     async def list_top(
         self, user_id: uuid.UUID, limit: int = 50

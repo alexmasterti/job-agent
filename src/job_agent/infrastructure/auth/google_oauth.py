@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import structlog
-from authlib.integrations.httpx_client import AsyncOAuth2Client
+from authlib.integrations.httpx_client import AsyncOAuth2Client  # type: ignore[import-untyped]
 
 from job_agent.domain.exceptions import UserNotAllowedError
 from job_agent.domain.models.user import User, UserTier

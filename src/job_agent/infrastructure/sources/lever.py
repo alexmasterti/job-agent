@@ -66,7 +66,7 @@ class LeverSource:
 
         jobs: list[Job] = []
         for slug, result in zip(self._slugs, results, strict=False):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 log.debug("lever.skip", slug=slug, error=str(result))
             else:
                 jobs.extend(result)
@@ -106,7 +106,7 @@ class LeverSource:
             if not _keyword_match(title, query):
                 continue
 
-            categories: dict = item.get("categories", {})
+            categories: dict[str, str] = item.get("categories", {})
             location: str = categories.get("location", "")
             commitment: str = categories.get("commitment", "")
             is_remote = _is_remote(location, commitment)

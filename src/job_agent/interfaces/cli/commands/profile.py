@@ -25,8 +25,8 @@ app = typer.Typer(help="Resume profile commands.")
 console = Console()
 
 
-def _run(coro):  # type: ignore[no-untyped-def]
-    return asyncio.run(coro)
+def _run(coro: object) -> object:
+    return asyncio.run(coro)  # type: ignore[arg-type]
 
 
 @app.command("load")

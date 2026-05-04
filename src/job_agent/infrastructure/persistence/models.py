@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -55,7 +56,7 @@ class ProfileRow(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     resume_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now
     )
@@ -121,7 +122,7 @@ class MatchRow(Base):
     hard_requirement_score: Mapped[float] = mapped_column(Float, nullable=False)
     final_score: Mapped[float] = mapped_column(Float, nullable=False)
     reasoning: Mapped[str] = mapped_column(Text, nullable=False)
-    flags: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    flags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     scored_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -140,7 +141,7 @@ class ApplicationRow(Base):
     submission_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
     resume_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     cover_letter_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
-    form_fields_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    form_fields_snapshot: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False, default=dict)
     ats_confirmation_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     screenshot_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     response_text: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -190,7 +191,7 @@ class EventRow(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     event_type: Mapped[str] = mapped_column(String(128), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     correlation_id: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now

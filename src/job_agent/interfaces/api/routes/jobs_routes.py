@@ -47,7 +47,7 @@ def _location_ok(job_location: str, job_remote: bool, profile: Profile | None) -
 
 
 def _templates(request: Request) -> Jinja2Templates:
-    return request.app.state.templates
+    return request.app.state.templates  # type: ignore[no-any-return]
 
 
 def _get_user_id(request: Request) -> uuid.UUID | None:
@@ -82,7 +82,7 @@ async def jobs_page(
     applying_count = app_counts.get("applying", 0)
     applied_count = sum(app_counts.get(s, 0) for s in ("applied_manual", "auto_applied"))
 
-    ctx: dict = {
+    ctx: dict[str, object] = {
         "user": user,
         "tab": tab,
         "applying_count": applying_count,

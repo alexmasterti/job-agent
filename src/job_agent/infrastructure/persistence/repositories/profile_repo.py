@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
@@ -56,7 +56,7 @@ class ProfileRepository:
         return _to_domain(row)
 
 
-def _to_data(profile: Profile) -> dict:
+def _to_data(profile: Profile) -> dict[str, Any]:
     return profile.model_dump(exclude={"id", "user_id", "resume_text", "created_at", "updated_at"})
 
 

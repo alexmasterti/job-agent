@@ -107,7 +107,7 @@ class MatchJobsUseCase:
         skipped = 0
 
         for job, result in zip(jobs, results, strict=False):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 log.warning("match.score_error", job_id=str(job.id), error=str(result))
             elif result is None:
                 passes, _ = self._matching.passes_hard_filters(profile, job)

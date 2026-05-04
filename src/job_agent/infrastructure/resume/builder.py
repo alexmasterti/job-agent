@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 from io import BytesIO
+from typing import Any
 
 from docx import Document
 from docx.oxml.ns import qn
@@ -55,7 +56,7 @@ _DEGREE_PREFIXES = (
 )
 
 
-def _set_font(run, bold: bool, size_pt: float) -> None:
+def _set_font(run: Any, bold: bool, size_pt: float) -> None:
     run.bold = bold
     run.font.name = "Arial"
     run.font.size = Pt(size_pt)
@@ -63,7 +64,7 @@ def _set_font(run, bold: bool, size_pt: float) -> None:
     run._element.rPr.rFonts.set(qn("w:hAnsiTheme"), "")
 
 
-def _add_run(para, text: str, bold: bool, size_pt: float) -> None:
+def _add_run(para: Any, text: str, bold: bool, size_pt: float) -> None:
     run = para.add_run(text)
     run.bold = bold
     run.font.name = "Arial"

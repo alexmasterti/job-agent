@@ -37,12 +37,13 @@ class ApplicationRepository:
 
     async def get_by_job(self, user_id: uuid.UUID, job_id: uuid.UUID) -> ApplicationRow | None:
         async with self._sf() as s:
-            return await s.scalar(
+            result = await s.scalar(
                 select(ApplicationRow).where(
                     ApplicationRow.user_id == user_id,
                     ApplicationRow.job_id == job_id,
                 )
             )
+        return result
 
     async def list_applying(
         self, user_id: uuid.UUID
@@ -151,4 +152,5 @@ class ApplicationRepository:
 
     async def get_by_id(self, app_id: uuid.UUID) -> ApplicationRow | None:
         async with self._sf() as s:
-            return await s.scalar(select(ApplicationRow).where(ApplicationRow.id == app_id))
+            result = await s.scalar(select(ApplicationRow).where(ApplicationRow.id == app_id))
+        return result

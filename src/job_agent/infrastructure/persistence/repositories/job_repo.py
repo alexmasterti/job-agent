@@ -85,7 +85,7 @@ class JobRepository:
         async with self._sf() as s, s.begin():
             result = await s.execute(stmt)
 
-        new_count = result.rowcount
+        new_count: int = result.rowcount  # type: ignore[attr-defined]
         return new_count, len(jobs) - new_count
 
     async def get_by_id(self, job_id: uuid.UUID) -> Job | None:

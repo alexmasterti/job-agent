@@ -38,12 +38,13 @@ class UserResumeRepository:
 
     async def get_by_id(self, resume_id: uuid.UUID, user_id: uuid.UUID) -> UserResumeRow | None:
         async with self._sf() as s:
-            return await s.scalar(
+            result = await s.scalar(
                 select(UserResumeRow).where(
                     UserResumeRow.id == resume_id,
                     UserResumeRow.user_id == user_id,
                 )
             )
+        return result
 
     async def create(
         self,
