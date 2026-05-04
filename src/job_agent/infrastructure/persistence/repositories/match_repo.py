@@ -82,7 +82,7 @@ class MatchRepository:
                         JobRow.remote,
                     )
                     .join(JobRow, MatchRow.job_id == JobRow.id)
-                    .where(MatchRow.user_id == user_id)
+                    .where(MatchRow.user_id == user_id, MatchRow.final_score > 0)
                     .order_by(MatchRow.final_score.desc())
                     .limit(limit)
                 )

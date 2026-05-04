@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 
 from job_agent.domain.models.job import Job
-from job_agent.infrastructure.persistence.models import JobRow
+from job_agent.infrastructure.persistence.models import JobRow, MatchRow
 
 if TYPE_CHECKING:
     import uuid
@@ -94,11 +94,13 @@ class JobRepository:
         return _to_domain(row) if row else None
 
     async def list_unmatched(self, user_id: uuid.UUID, limit: int = 500) -> list[Job]:
+        """Return jobs that have NOT been scored yet (no row in matches table)."""
+        scored_subq = select(MatchRow.job_id).where(MatchRow.user_id == user_id)
         async with self._sf() as s:
             rows = (
                 await s.scalars(
                     select(JobRow)
-                    .where(JobRow.user_id == user_id)
+                    .where(JobRow.user_id == user_id, JobRow.id.notin_(scored_subq))
                     .order_by(JobRow.discovered_at.desc())
                     .limit(limit)
                 )

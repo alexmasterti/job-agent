@@ -12,6 +12,7 @@ import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from job_agent.domain.models.match import Match
 from job_agent.interfaces.api.middleware.auth import _COOKIE_NAME, decode_session
 
 if TYPE_CHECKING:
@@ -168,9 +169,7 @@ async def _run_pipeline(
             state.finished_at = datetime.now(UTC)
             return
 
-        all_jobs = await container.job_repo.list_unmatched(user_id, limit=500)
-        already_scored = await container.match_repo.get_scored_job_ids(user_id)
-        jobs = [j for j in all_jobs if j.id not in already_scored]
+        jobs = await container.job_repo.list_unmatched(user_id, limit=500)
         state.total_to_score = len(jobs)
 
         if not jobs:
@@ -189,8 +188,8 @@ async def _run_pipeline(
 
         state.status_detail = "Scoring with LLM..."
         matching_svc = container.match_jobs._matching
-        matches = []
-        batch_unsaved: list[object] = []
+        matches: list[Match] = []
+        batch_unsaved: list[Match] = []
         save_every = 10
 
         for job, job_emb in zip(jobs, job_embs, strict=False):
@@ -205,8 +204,24 @@ async def _run_pipeline(
                 passes, _ = matching_svc.passes_hard_filters(profile, job)
                 if not passes:
                     state.filtered += 1
+                    reason = "hard_filter"
                 else:
                     state.skipped_low_embedding += 1
+                    reason = "low_embedding"
+                # Save a zero-score entry so this job is never re-processed
+                skip_match = Match(
+                    id=uuid.uuid4(),
+                    user_id=user_id,
+                    job_id=job.id,
+                    embedding_score=0.0,
+                    llm_score=0.0,
+                    hard_requirement_score=0.0,
+                    final_score=0.0,
+                    reasoning=reason,
+                    flags=[reason],
+                    scored_at=datetime.now(UTC),
+                )
+                batch_unsaved.append(skip_match)
             else:
                 matches.append(result)
                 batch_unsaved.append(result)
@@ -216,7 +231,7 @@ async def _run_pipeline(
 
             # Save in batches so progress isn't lost on crash
             if len(batch_unsaved) >= save_every:
-                await container.match_repo.save_many(batch_unsaved)  # type: ignore[arg-type]
+                await container.match_repo.save_many(batch_unsaved)
                 batch_unsaved.clear()
 
             # Small delay between LLM calls to respect rate limits
@@ -225,7 +240,7 @@ async def _run_pipeline(
 
         # Save remaining
         if batch_unsaved:
-            await container.match_repo.save_many(batch_unsaved)  # type: ignore[arg-type]
+            await container.match_repo.save_many(batch_unsaved)
 
         state.stage = _STAGE_DONE
         state.finished_at = datetime.now(UTC)
