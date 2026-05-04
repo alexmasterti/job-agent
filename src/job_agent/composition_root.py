@@ -8,13 +8,12 @@ in this file — nothing else changes.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from job_agent.application.use_cases.discover_jobs import DiscoverJobsUseCase
 from job_agent.application.use_cases.load_profile import LoadProfileUseCase
 from job_agent.application.use_cases.match_jobs import MatchJobsUseCase
 from job_agent.application.use_cases.tailor_and_apply import TailorAndApplyUseCase
-from job_agent.config import Settings
-from job_agent.domain.ports.job_source import JobSourcePort
 from job_agent.domain.services.matching import MatchingService
 from job_agent.infrastructure.auth.google_oauth import GoogleOAuthAdapter
 from job_agent.infrastructure.billing.local_billing import LocalBillingService
@@ -27,11 +26,15 @@ from job_agent.infrastructure.persistence.repositories import (
     LLMCallRepository,
     MatchRepository,
     ProfileRepository,
-    UserResumeRepository,
     UserRepository,
+    UserResumeRepository,
 )
 from job_agent.infrastructure.sources.greenhouse import GreenhouseSource
 from job_agent.infrastructure.sources.lever import LeverSource
+
+if TYPE_CHECKING:
+    from job_agent.config import Settings
+    from job_agent.domain.ports.job_source import JobSourcePort
 
 
 @dataclass(frozen=True)

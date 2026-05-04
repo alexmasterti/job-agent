@@ -36,7 +36,9 @@ class EmbeddingEncoder:
 
     def encode_batch(self, texts: list[str], batch_size: int = 32) -> list[list[float]]:
         model = self._model_instance()
-        vecs = model.encode(texts, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=True)
+        vecs = model.encode(
+            texts, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=True
+        )
         return [v.tolist() for v in vecs]
 
     @staticmethod

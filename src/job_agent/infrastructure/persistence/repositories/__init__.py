@@ -6,4 +6,12 @@ from job_agent.infrastructure.persistence.repositories.profile_repo import Profi
 from job_agent.infrastructure.persistence.repositories.resume_repo import UserResumeRepository
 from job_agent.infrastructure.persistence.repositories.user_repo import UserRepository
 
-__all__ = ["ApplicationRepository", "JobRepository", "LLMCallRepository", "MatchRepository", "ProfileRepository", "UserResumeRepository", "UserRepository"]
+__all__ = [
+    "ApplicationRepository",
+    "JobRepository",
+    "LLMCallRepository",
+    "MatchRepository",
+    "ProfileRepository",
+    "UserResumeRepository",
+    "UserRepository",
+]

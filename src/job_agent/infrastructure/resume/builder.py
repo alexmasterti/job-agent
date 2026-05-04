@@ -41,7 +41,18 @@ _DATE_RE = re.compile(
     r"|\bPresent\b"
 )
 
-_DEGREE_PREFIXES = ("Associate", "Bachelor", "Master", "Doctor", "PhD", "MBA", "B.S", "M.S", "B.A", "M.A")
+_DEGREE_PREFIXES = (
+    "Associate",
+    "Bachelor",
+    "Master",
+    "Doctor",
+    "PhD",
+    "MBA",
+    "B.S",
+    "M.S",
+    "B.A",
+    "M.A",
+)
 
 
 def _set_font(run, bold: bool, size_pt: float) -> None:
@@ -63,7 +74,7 @@ def _split_job_header(line: str) -> tuple[str, str]:
     """Split 'Title — Company Oct 2025 to Present | Location' into (bold, regular)."""
     m = _DATE_RE.search(line)
     if m:
-        return line[: m.start()].rstrip(), " " + line[m.start():]
+        return line[: m.start()].rstrip(), " " + line[m.start() :]
     return line, ""
 
 

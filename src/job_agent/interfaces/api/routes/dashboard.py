@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 
-from job_agent.interfaces.api.middleware.auth import decode_session, _COOKIE_NAME
-from job_agent.config import Settings
+from job_agent.interfaces.api.middleware.auth import _COOKIE_NAME, decode_session
+
+if TYPE_CHECKING:
+    from fastapi.templating import Jinja2Templates
+
+    from job_agent.config import Settings
 
 router = APIRouter()
 

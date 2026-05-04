@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
 
-class ApplicationStatus(str, Enum):
+class ApplicationStatus(StrEnum):
     pending_human_review = "pending_human_review"
     queued = "queued"
     submitted = "submitted"

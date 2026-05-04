@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import time
-import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import anthropic
 import structlog
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from job_agent.config import Settings
-from job_agent.domain.exceptions import BudgetExceeded
-from job_agent.infrastructure.persistence.repositories.llm_call_repo import LLMCallRepository
+from job_agent.domain.exceptions import BudgetExceededError
+
+if TYPE_CHECKING:
+    import uuid
+
+    from job_agent.config import Settings
+    from job_agent.infrastructure.persistence.repositories.llm_call_repo import LLMCallRepository
 
 log = structlog.get_logger()
 
@@ -129,7 +132,7 @@ class AnthropicClient:
     async def _assert_budget(self, user_id: uuid.UUID) -> None:
         spent = await self._repo.today_spend(user_id)
         if spent >= self._daily_budget:
-            raise BudgetExceeded(
+            raise BudgetExceededError(
                 f"Daily LLM budget ${self._daily_budget:.2f} reached "
                 f"(spent ${spent:.2f}) for user {user_id}"
             )

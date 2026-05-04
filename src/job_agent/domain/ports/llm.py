@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import uuid
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    import uuid
 
 
 @runtime_checkable
@@ -24,7 +26,7 @@ class LLMPort(Protocol):
         Implementations must:
         - Log every call to the llm_calls table.
         - Enforce the per-user daily budget before sending.
-        - Raise BudgetExceeded if the cap would be breached.
+        - Raise BudgetExceededError if the cap would be breached.
         """
         ...
 

@@ -8,13 +8,16 @@ from __future__ import annotations
 import json
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import structlog
 
-from job_agent.domain.models.job import Job
 from job_agent.domain.models.match import Match
-from job_agent.domain.models.profile import Profile
+
+if TYPE_CHECKING:
+    from job_agent.domain.models.job import Job
+    from job_agent.domain.models.profile import Profile
 
 log = structlog.get_logger()
 
@@ -91,11 +94,7 @@ class MatchingService:
 
         llm_score, hard_score, reasoning = await self._llm_judge(user_id, profile, job)
 
-        final_score = (
-            0.4 * embedding_score * 100
-            + 0.4 * llm_score
-            + 0.2 * hard_score * 100
-        )
+        final_score = 0.4 * embedding_score * 100 + 0.4 * llm_score + 0.2 * hard_score * 100
 
         return Match(
             id=uuid.uuid4(),
@@ -107,7 +106,7 @@ class MatchingService:
             final_score=round(final_score, 2),
             reasoning=reasoning,
             flags=flags,
-            scored_at=datetime.now(timezone.utc),
+            scored_at=datetime.now(UTC),
         )
 
     async def _llm_judge(

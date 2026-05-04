@@ -21,8 +21,12 @@ console = Console()
 def run(
     user_email: Annotated[str, typer.Option("--user-email", "-u", help="Authenticated user email")],
     source: Annotated[str, typer.Option("--source", "-s", help="greenhouse | lever | all")] = "all",
-    keyword: Annotated[str, typer.Option("--keyword", "-k", help="Search query (title match)")] = "software engineer",
-    remote: Annotated[bool, typer.Option("--remote/--no-remote", help="Remote-only filter")] = False,
+    keyword: Annotated[
+        str, typer.Option("--keyword", "-k", help="Search query (title match)")
+    ] = "software engineer",
+    remote: Annotated[
+        bool, typer.Option("--remote/--no-remote", help="Remote-only filter")
+    ] = False,
 ) -> None:
     """Discover jobs from ATS job boards and persist them to the database."""
     settings = Settings()  # type: ignore[call-arg]
@@ -55,6 +59,8 @@ def run(
             total_new += r.new
 
         console.print(table)
-        console.print(f"\n[bold green]Done.[/bold green] {total_new} new jobs added to the database.")
+        console.print(
+            f"\n[bold green]Done.[/bold green] {total_new} new jobs added to the database."
+        )
 
     asyncio.run(_run_async())

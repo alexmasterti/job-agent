@@ -1,9 +1,7 @@
 """Unit tests for domain models — pure Python, zero I/O."""
 
 import uuid
-from datetime import datetime, timezone
-
-import pytest
+from datetime import UTC, datetime
 
 from job_agent.domain.models.application import Application, ApplicationStatus
 from job_agent.domain.models.job import Job
@@ -12,7 +10,7 @@ from job_agent.domain.models.user import User, UserTier
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TestUser:

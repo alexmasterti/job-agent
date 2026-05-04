@@ -34,6 +34,7 @@ def client():
         return_value=(mock_factory, mock_factory),
     ):
         from job_agent.interfaces.api.app import create_app
+
         app = create_app()
 
     with TestClient(app, raise_server_exceptions=False) as c:

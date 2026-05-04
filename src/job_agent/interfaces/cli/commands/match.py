@@ -59,8 +59,14 @@ def run(
         table.add_column("Location", min_width=16)
         table.add_column("Reasoning")
 
-        for i, (match, title, company, location, url) in enumerate(rows, 1):
-            score_style = "green" if match.final_score >= 70 else "yellow" if match.final_score >= 50 else "dim"
+        for i, (match, title, company, location, _url) in enumerate(rows, 1):
+            score_style = (
+                "green"
+                if match.final_score >= 70
+                else "yellow"
+                if match.final_score >= 50
+                else "dim"
+            )
             table.add_row(
                 str(i),
                 f"[{score_style}]{match.final_score:.0f}[/{score_style}]",
@@ -92,7 +98,7 @@ def top_cmd(
             raise typer.Exit(1)
 
         rows = await container.match_repo.list_top(user.id, limit=limit)
-        rows = [(m, t, c, l, u) for m, t, c, l, u in rows if m.final_score >= min_score]
+        rows = [(m, t, c, loc, u) for m, t, c, loc, u in rows if m.final_score >= min_score]
 
         if not rows:
             console.print("[yellow]No matches found. Run: job-agent match run[/yellow]")
@@ -108,8 +114,14 @@ def top_cmd(
         table.add_column("Location", min_width=14)
         table.add_column("Reasoning")
 
-        for i, (match, title, company, location, url) in enumerate(rows, 1):
-            score_style = "green" if match.final_score >= 70 else "yellow" if match.final_score >= 50 else "dim"
+        for i, (match, title, company, location, _url) in enumerate(rows, 1):
+            score_style = (
+                "green"
+                if match.final_score >= 70
+                else "yellow"
+                if match.final_score >= 50
+                else "dim"
+            )
             table.add_row(
                 str(i),
                 f"[{score_style}]{match.final_score:.0f}[/{score_style}]",

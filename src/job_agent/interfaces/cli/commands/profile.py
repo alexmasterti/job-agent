@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 from rich.console import Console
@@ -15,9 +15,11 @@ from rich.syntax import Syntax
 
 from job_agent.composition_root import build_container
 from job_agent.config import Settings
-from job_agent.domain.exceptions import UserNotAllowed, UserNotFound
 from job_agent.domain.models.user import User, UserTier
 from job_agent.logging_config import configure_logging
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 app = typer.Typer(help="Resume profile commands.")
 console = Console()
@@ -29,7 +31,7 @@ def _run(coro):  # type: ignore[no-untyped-def]
 
 @app.command("load")
 def load(
-    resume_path: Path = typer.Argument(..., help="Path to resume PDF"),
+    resume_path: Annotated[Path, typer.Argument(help="Path to resume PDF")],
     user_email: str = typer.Option(..., "--user-email", "-u", help="Google email for the user"),
 ) -> None:
     """Parse a resume PDF and save the structured profile.
@@ -55,7 +57,7 @@ def load(
                 google_sub=f"cli:{user_email.lower()}",
                 tier=UserTier.pro,
                 is_active=True,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
             existing = await container.user_repo.upsert(user)
             console.print(f"[green]Created user row for {user_email}[/green]")

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import traceback
 from pathlib import Path
 
 import sentry_sdk
 import structlog
-import traceback
-
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -59,7 +58,9 @@ def create_app() -> FastAPI:
 
     # Middleware (outermost first)
     app.add_middleware(CorrelationIdMiddleware)
-    app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, https_only=settings.is_production)
+    app.add_middleware(
+        SessionMiddleware, secret_key=settings.secret_key, https_only=settings.is_production
+    )
 
     # Routers
     app.include_router(health_router)

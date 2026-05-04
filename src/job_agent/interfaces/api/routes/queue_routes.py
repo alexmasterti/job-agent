@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 
-from job_agent.config import Settings
 from job_agent.interfaces.api.middleware.auth import _COOKIE_NAME, decode_session
+
+if TYPE_CHECKING:
+    from fastapi.templating import Jinja2Templates
+
+    from job_agent.config import Settings
 
 router = APIRouter()
 
@@ -26,7 +30,6 @@ def _get_user_id(request: Request) -> uuid.UUID | None:
         return uuid.UUID(data["user_id"])
     except Exception:
         return None
-
 
 
 @router.get("/api/queue/rows", response_model=None)
@@ -50,20 +53,20 @@ async def queue_rows(request: Request) -> HTMLResponse:
         )
 
     rows = ""
-    for app, title, company, location, url in applying:
+    for app, title, company, location, _url in applying:
         score = match_scores.get(app.job_id, 0)
         rows += (
             f'<tr style="border-bottom:1px solid var(--border)">'
             f'<td style="padding:var(--space-3) var(--space-4)">'
             f'<div style="font-weight:600;font-size:14px">{title}</div>'
             f'<div style="font-size:12px;color:var(--text-muted)">{company}'
-            + (f' · {location}' if location else '') +
-            f'</div></td>'
+            + (f" · {location}" if location else "")
+            + f"</div></td>"
             f'<td style="padding:var(--space-3) var(--space-4)">'
             f'<span style="font-weight:700;color:var(--accent-light)">{int(score)}</span></td>'
             f'<td style="padding:var(--space-3) var(--space-4)">'
             f'<span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted)">'
             f'<span class="spinner"></span> Tailoring &amp; applying...</span></td>'
-            f'</tr>'
+            f"</tr>"
         )
     return HTMLResponse(rows)

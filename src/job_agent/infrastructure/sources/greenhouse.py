@@ -12,7 +12,7 @@ import asyncio
 import hashlib
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -65,7 +65,7 @@ class GreenhouseSource:
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
         jobs: list[Job] = []
-        for slug, result in zip(self._slugs, results):
+        for slug, result in zip(self._slugs, results, strict=False):
             if isinstance(result, Exception):
                 log.debug("greenhouse.skip", slug=slug, error=str(result))
             else:
@@ -129,7 +129,7 @@ class GreenhouseSource:
                     url=url_field,
                     description=description,
                     ats_type="greenhouse",
-                    discovered_at=datetime.now(timezone.utc),
+                    discovered_at=datetime.now(UTC),
                 )
             )
 

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from job_agent.domain.models.profile import Profile
 from job_agent.infrastructure.persistence.models import ProfileRow
+
+if TYPE_CHECKING:
+    import uuid
+
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 class ProfileRepository:
@@ -18,44 +22,42 @@ class ProfileRepository:
             row = await s.scalar(select(ProfileRow).where(ProfileRow.user_id == user_id))
         return _to_domain(row) if row else None
 
-    async def save_preferences(self, user_id: uuid.UUID, preferred_locations: list[str], remote_preference: str) -> None:
-        async with self._sf() as s:
-            async with s.begin():
-                row = await s.scalar(select(ProfileRow).where(ProfileRow.user_id == user_id))
-                if row:
-                    data = dict(row.data or {})
-                    data["preferred_locations"] = preferred_locations
-                    data["remote_preference"] = remote_preference
-                    row.data = data
+    async def save_preferences(
+        self, user_id: uuid.UUID, preferred_locations: list[str], remote_preference: str
+    ) -> None:
+        async with self._sf() as s, s.begin():
+            row = await s.scalar(select(ProfileRow).where(ProfileRow.user_id == user_id))
+            if row:
+                data = dict(row.data or {})
+                data["preferred_locations"] = preferred_locations
+                data["remote_preference"] = remote_preference
+                row.data = data
 
     async def save(self, profile: Profile) -> Profile:
-        async with self._sf() as s:
-            async with s.begin():
-                existing = await s.scalar(
-                    select(ProfileRow).where(ProfileRow.user_id == profile.user_id)
+        async with self._sf() as s, s.begin():
+            existing = await s.scalar(
+                select(ProfileRow).where(ProfileRow.user_id == profile.user_id)
+            )
+            if existing:
+                existing.resume_text = profile.resume_text
+                existing.data = _to_data(profile)
+                existing.updated_at = profile.updated_at
+                row = existing
+            else:
+                row = ProfileRow(
+                    id=profile.id,
+                    user_id=profile.user_id,
+                    resume_text=profile.resume_text,
+                    data=_to_data(profile),
+                    created_at=profile.created_at,
+                    updated_at=profile.updated_at,
                 )
-                if existing:
-                    existing.resume_text = profile.resume_text
-                    existing.data = _to_data(profile)
-                    existing.updated_at = profile.updated_at
-                    row = existing
-                else:
-                    row = ProfileRow(
-                        id=profile.id,
-                        user_id=profile.user_id,
-                        resume_text=profile.resume_text,
-                        data=_to_data(profile),
-                        created_at=profile.created_at,
-                        updated_at=profile.updated_at,
-                    )
-                    s.add(row)
+                s.add(row)
         return _to_domain(row)
 
 
 def _to_data(profile: Profile) -> dict:
-    return profile.model_dump(
-        exclude={"id", "user_id", "resume_text", "created_at", "updated_at"}
-    )
+    return profile.model_dump(exclude={"id", "user_id", "resume_text", "created_at", "updated_at"})
 
 
 def _to_domain(row: ProfileRow) -> Profile:

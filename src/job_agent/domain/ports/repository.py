@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import uuid
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from job_agent.domain.models.application import Application, ApplicationStatus
-from job_agent.domain.models.job import Job
-from job_agent.domain.models.match import Match
-from job_agent.domain.models.profile import Profile
-from job_agent.domain.models.user import User
+if TYPE_CHECKING:
+    import uuid
+
+    from job_agent.domain.models.application import Application, ApplicationStatus
+    from job_agent.domain.models.job import Job
+    from job_agent.domain.models.match import Match
+    from job_agent.domain.models.profile import Profile
+    from job_agent.domain.models.user import User
 
 
 @runtime_checkable

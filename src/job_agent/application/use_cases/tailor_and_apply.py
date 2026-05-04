@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
-import uuid
+from typing import TYPE_CHECKING
 
 import structlog
 
-from job_agent.infrastructure.llm.anthropic_client import AnthropicClient
-from job_agent.infrastructure.persistence.repositories.application_repo import ApplicationRepository
-from job_agent.infrastructure.persistence.repositories.job_repo import JobRepository
-from job_agent.infrastructure.persistence.repositories.profile_repo import ProfileRepository
-from job_agent.infrastructure.persistence.repositories.resume_repo import UserResumeRepository
+if TYPE_CHECKING:
+    import uuid
+
+    from job_agent.infrastructure.llm.anthropic_client import AnthropicClient
+    from job_agent.infrastructure.persistence.repositories.application_repo import (
+        ApplicationRepository,
+    )
+    from job_agent.infrastructure.persistence.repositories.job_repo import JobRepository
+    from job_agent.infrastructure.persistence.repositories.profile_repo import ProfileRepository
+    from job_agent.infrastructure.persistence.repositories.resume_repo import UserResumeRepository
 
 log = structlog.get_logger()
 
@@ -103,4 +108,5 @@ class TailorAndApplyUseCase:
 
 def _profile_to_text(profile) -> str:  # type: ignore[no-untyped-def]
     from job_agent.domain.services.matching import _profile_to_text as _pt
+
     return _pt(profile)

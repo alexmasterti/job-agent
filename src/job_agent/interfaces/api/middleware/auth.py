@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import Cookie, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-from job_agent.config import Settings
+if TYPE_CHECKING:
+    from job_agent.config import Settings
 
 _COOKIE_NAME = "auth"
 _MAX_AGE_SECONDS = 30 * 24 * 3600  # 30 days
@@ -42,4 +43,6 @@ def get_current_user_id(request: Request) -> uuid.UUID:
         data = decode_session(token, settings)
         return uuid.UUID(data["user_id"])
     except (BadSignature, SignatureExpired, KeyError, ValueError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired"
+        ) from None

@@ -12,7 +12,7 @@ import asyncio
 import hashlib
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -65,7 +65,7 @@ class LeverSource:
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
         jobs: list[Job] = []
-        for slug, result in zip(self._slugs, results):
+        for slug, result in zip(self._slugs, results, strict=False):
             if isinstance(result, Exception):
                 log.debug("lever.skip", slug=slug, error=str(result))
             else:
@@ -113,7 +113,9 @@ class LeverSource:
             if remote and not is_remote:
                 continue
 
-            description = _strip_html(item.get("description", "") or item.get("descriptionPlain", ""))
+            description = _strip_html(
+                item.get("description", "") or item.get("descriptionPlain", "")
+            )
             company = slug.replace("-", " ").title()
             external_id: str = item.get("id", "")
             url_field: str = item.get("hostedUrl", "")
@@ -132,7 +134,7 @@ class LeverSource:
                     url=url_field,
                     description=description,
                     ats_type="lever",
-                    discovered_at=datetime.now(timezone.utc),
+                    discovered_at=datetime.now(UTC),
                 )
             )
 

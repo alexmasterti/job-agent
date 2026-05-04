@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 
-from job_agent.config import Settings
-from job_agent.domain.exceptions import UserNotAllowed
+from job_agent.domain.exceptions import UserNotAllowedError
 from job_agent.domain.models.user import User, UserTier
-from job_agent.infrastructure.persistence.repositories.user_repo import UserRepository
+
+if TYPE_CHECKING:
+    from job_agent.config import Settings
+    from job_agent.infrastructure.persistence.repositories.user_repo import UserRepository
 
 log = structlog.get_logger()
 
@@ -49,7 +51,7 @@ class GoogleOAuthAdapter:
     async def exchange_code(self, code: str) -> User:
         """Exchange the OAuth callback code for a user identity.
 
-        Raises UserNotAllowed if the email is not in ALLOWED_GOOGLE_EMAILS.
+        Raises UserNotAllowedError if the email is not in ALLOWED_GOOGLE_EMAILS.
         Creates or updates the user row on success.
         """
         log.info("oauth.fetch_token.start")
@@ -68,7 +70,7 @@ class GoogleOAuthAdapter:
 
         if email not in self._settings.allowed_emails:
             log.warning("oauth.not_allowed", email=email, allowed=self._settings.allowed_emails)
-            raise UserNotAllowed(f"Email not in allowlist: {email}")
+            raise UserNotAllowedError(f"Email not in allowlist: {email}")
 
         log.info("oauth.db.lookup_start")
         existing = await self._user_repo.get_by_google_sub(google_sub)
@@ -79,7 +81,7 @@ class GoogleOAuthAdapter:
             google_sub=google_sub,
             tier=existing.tier if existing else UserTier.pro,
             is_active=True,
-            created_at=existing.created_at if existing else datetime.now(timezone.utc),
+            created_at=existing.created_at if existing else datetime.now(UTC),
         )
         log.info("oauth.db.upsert_start")
         saved = await self._user_repo.upsert(user)

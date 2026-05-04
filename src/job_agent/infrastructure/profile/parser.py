@@ -5,16 +5,19 @@ from __future__ import annotations
 import json
 import re
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 import structlog
-from pypdf import PdfReader
 from docx import Document
+from pypdf import PdfReader
 
 from job_agent.domain.models.profile import Profile
-from job_agent.infrastructure.llm.anthropic_client import AnthropicClient
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from job_agent.infrastructure.llm.anthropic_client import AnthropicClient
 
 log = structlog.get_logger()
 
@@ -86,7 +89,7 @@ async def parse_resume(
 
     structured = await _llm_extract(resume_text, user_id, llm)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return Profile(
         id=uuid.uuid4(),
         user_id=user_id,

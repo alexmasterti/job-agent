@@ -3,14 +3,18 @@ from __future__ import annotations
 import tempfile
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 
-from job_agent.config import Settings
 from job_agent.infrastructure.profile.parser import extract_text_from_docx, extract_text_from_pdf
 from job_agent.interfaces.api.middleware.auth import _COOKIE_NAME, decode_session
+
+if TYPE_CHECKING:
+    from fastapi.templating import Jinja2Templates
+
+    from job_agent.config import Settings
 
 router = APIRouter()
 
@@ -57,8 +61,8 @@ async def profile_page(request: Request) -> HTMLResponse | RedirectResponse:
     profile = await container.profile_repo.get_by_user(user_id)
     resumes = await container.resume_repo.list_for_user(user_id)
 
-    preferred_locations = (profile.preferred_locations if profile else [])
-    remote_preference = (profile.remote_preference if profile else "any")
+    preferred_locations = profile.preferred_locations if profile else []
+    remote_preference = profile.remote_preference if profile else "any"
 
     return _templates(request).TemplateResponse(
         request,

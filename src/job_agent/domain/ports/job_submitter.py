@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from job_agent.domain.models.application import Application
-from job_agent.domain.models.profile import Profile
+if TYPE_CHECKING:
+    from job_agent.domain.models.application import Application
+    from job_agent.domain.models.profile import Profile
 
 
 @runtime_checkable

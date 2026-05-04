@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import uuid
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from job_agent.domain.models.job import Job
+if TYPE_CHECKING:
+    import uuid
+
+    from job_agent.domain.models.job import Job
 
 
 @runtime_checkable

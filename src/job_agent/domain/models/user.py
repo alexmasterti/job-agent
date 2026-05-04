@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, EmailStr
 
 
-class UserTier(str, Enum):
+class UserTier(StrEnum):
     free = "free"
     pro = "pro"
 

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from job_agent.domain.models.user import User, UserTier
 from job_agent.infrastructure.persistence.models import UserRow
+
+if TYPE_CHECKING:
+    import uuid
+
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 class UserRepository:
@@ -31,26 +35,23 @@ class UserRepository:
         return _to_domain(row) if row else None
 
     async def upsert(self, user: User) -> User:
-        async with self._sf() as s:
-            async with s.begin():
-                existing = await s.scalar(
-                    select(UserRow).where(UserRow.google_sub == user.google_sub)
+        async with self._sf() as s, s.begin():
+            existing = await s.scalar(select(UserRow).where(UserRow.google_sub == user.google_sub))
+            if existing:
+                existing.email = user.email
+                existing.tier = user.tier.value
+                existing.is_active = user.is_active
+                row = existing
+            else:
+                row = UserRow(
+                    id=user.id,
+                    email=user.email,
+                    google_sub=user.google_sub,
+                    tier=user.tier.value,
+                    is_active=user.is_active,
+                    created_at=user.created_at,
                 )
-                if existing:
-                    existing.email = user.email
-                    existing.tier = user.tier.value
-                    existing.is_active = user.is_active
-                    row = existing
-                else:
-                    row = UserRow(
-                        id=user.id,
-                        email=user.email,
-                        google_sub=user.google_sub,
-                        tier=user.tier.value,
-                        is_active=user.is_active,
-                        created_at=user.created_at,
-                    )
-                    s.add(row)
+                s.add(row)
         return _to_domain(row)
 
 

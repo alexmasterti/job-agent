@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import structlog
 
-from job_agent.domain.ports.job_source import JobSourcePort
-from job_agent.infrastructure.persistence.repositories.job_repo import JobRepository
+if TYPE_CHECKING:
+    import uuid
+
+    from job_agent.domain.ports.job_source import JobSourcePort
+    from job_agent.infrastructure.persistence.repositories.job_repo import JobRepository
 
 log = structlog.get_logger()
 

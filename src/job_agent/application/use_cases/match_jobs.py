@@ -3,19 +3,22 @@
 from __future__ import annotations
 
 import asyncio
-import uuid
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import structlog
 
-from job_agent.domain.models.job import Job
-from job_agent.domain.models.match import Match
-from job_agent.domain.models.profile import Profile
-from job_agent.domain.services.matching import MatchingService
-from job_agent.infrastructure.embeddings.encoder import EmbeddingEncoder
-from job_agent.infrastructure.persistence.repositories.job_repo import JobRepository
-from job_agent.infrastructure.persistence.repositories.match_repo import MatchRepository
-from job_agent.infrastructure.persistence.repositories.profile_repo import ProfileRepository
+if TYPE_CHECKING:
+    import uuid
+
+    from job_agent.domain.models.job import Job
+    from job_agent.domain.models.match import Match
+    from job_agent.domain.models.profile import Profile
+    from job_agent.domain.services.matching import MatchingService
+    from job_agent.infrastructure.embeddings.encoder import EmbeddingEncoder
+    from job_agent.infrastructure.persistence.repositories.job_repo import JobRepository
+    from job_agent.infrastructure.persistence.repositories.match_repo import MatchRepository
+    from job_agent.infrastructure.persistence.repositories.profile_repo import ProfileRepository
 
 log = structlog.get_logger()
 
@@ -79,7 +82,9 @@ class MatchJobsUseCase:
 
         saved = await self._match_repo.save_many(matches)
         log.info("match.done", scored=len(matches), saved=saved, filtered=filtered, skipped=skipped)
-        return MatchResult(scored=len(matches), saved=saved, filtered=filtered, skipped_low_embedding=skipped)
+        return MatchResult(
+            scored=len(matches), saved=saved, filtered=filtered, skipped_low_embedding=skipped
+        )
 
     async def _score_all(
         self,
@@ -94,14 +99,14 @@ class MatchJobsUseCase:
             async with sem:
                 return await self._matching.score(user_id, profile, job, job_emb, profile_emb)
 
-        tasks = [_score_one(job, emb) for job, emb in zip(jobs, job_embs)]
+        tasks = [_score_one(job, emb) for job, emb in zip(jobs, job_embs, strict=False)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         matches: list[Match] = []
         filtered = 0
         skipped = 0
 
-        for job, result in zip(jobs, results):
+        for job, result in zip(jobs, results, strict=False):
             if isinstance(result, Exception):
                 log.warning("match.score_error", job_id=str(job.id), error=str(result))
             elif result is None:
@@ -118,4 +123,5 @@ class MatchJobsUseCase:
 
 def _profile_to_text(profile: Profile) -> str:
     from job_agent.domain.services.matching import _profile_to_text as _pt
+
     return _pt(profile)
