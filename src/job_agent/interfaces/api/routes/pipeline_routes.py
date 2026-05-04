@@ -189,13 +189,13 @@ async def _run_pipeline(
 
         state.status_detail = "Scoring with LLM..."
         matching_svc = container.match_jobs._matching
-        sem = asyncio.Semaphore(5)
         matches = []
+        batch_unsaved: list[object] = []
+        save_every = 10
 
         for job, job_emb in zip(jobs, job_embs, strict=False):
             try:
-                async with sem:
-                    result = await matching_svc.score(user_id, profile, job, job_emb, profile_emb)
+                result = await matching_svc.score(user_id, profile, job, job_emb, profile_emb)
             except Exception as exc:
                 log.warning("pipeline.score_error", job_id=str(job.id), error=str(exc))
                 result = None
@@ -209,11 +209,23 @@ async def _run_pipeline(
                     state.skipped_low_embedding += 1
             else:
                 matches.append(result)
+                batch_unsaved.append(result)
                 state.saved = len(matches)
+
             state.status_detail = f"Scored {state.scored}/{state.total_to_score}"
 
-        if matches:
-            await container.match_repo.save_many(matches)
+            # Save in batches so progress isn't lost on crash
+            if len(batch_unsaved) >= save_every:
+                await container.match_repo.save_many(batch_unsaved)  # type: ignore[arg-type]
+                batch_unsaved.clear()
+
+            # Small delay between LLM calls to respect rate limits
+            if result is not None:
+                await asyncio.sleep(0.3)
+
+        # Save remaining
+        if batch_unsaved:
+            await container.match_repo.save_many(batch_unsaved)  # type: ignore[arg-type]
 
         state.stage = _STAGE_DONE
         state.finished_at = datetime.now(UTC)
